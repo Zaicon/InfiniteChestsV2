@@ -1,5 +1,6 @@
 ﻿using Mono.Data.Sqlite;
 using MySql.Data.MySqlClient;
+using System;
 using System.Data;
 using System.IO;
 using Terraria;
@@ -137,6 +138,44 @@ namespace InfChests
 				return false;
 			else
 				return true;
+		}
+
+		public static int getChestCount()
+		{
+			string query = "SELECT COUNT(*) AS RowCount FROM InfChests";
+			using (var reader = db.QueryReader(query))
+			{
+				if (reader.Read())
+					return reader.Get<int>("RowCount");
+			}
+			throw new Exception("Database error.");
+		}
+
+		public static void restoreChests()
+		{
+			InfChests.lockChests = true;
+			string query = $"SELECT * FROM InfChests WHERE WorldID = {Main.worldID}";
+			using (var reader = db.QueryReader(query))
+			{
+				int count = 0;
+				while (reader.Read())
+				{
+					InfChest temp = new InfChest();
+					temp.setItemsFromString(reader.Get<string>("Items"));
+					Main.chest[count] = new Chest()
+					{
+						item = temp.items,
+						x = reader.Get<int>("X"),
+						y = reader.Get<int>("Y")
+					};
+					count++;
+				}
+			}
+			query = $"DELETE FROM InfChests WHERE WorldID = {Main.worldID}";
+			db.Query(query);
+			TShock.Utils.SaveWorld();
+			InfChests.lockChests = false;
+			InfChests.notInfChests = true;
 		}
 	}
 }

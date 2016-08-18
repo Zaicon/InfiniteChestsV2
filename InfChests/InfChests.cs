@@ -51,6 +51,8 @@ namespace InfChests
 		#endregion
 
 		private static Dictionary<int, Data> playerData = new Dictionary<int, Data>();
+		internal static bool lockChests = false;
+		internal static bool notInfChests = false;
 
 		#region Hooks
 		private void onInitialize(EventArgs args)
@@ -62,38 +64,19 @@ namespace InfChests
 			}
 
 			Commands.ChatCommands.Add(new Command("ic.use", ChestCMD, "chest"));
+			Commands.ChatCommands.Add(new Command("ic.convert", ConvChests, "convchests"));
 		}
 
 		private void onWorldLoaded(EventArgs args)
 		{
-			int converted = 0;
-			for (int i = 0; i < Main.chest.Length; i++)
-			{
-				Chest chest = Main.chest[i];
-				if (chest != null)
-				{
-					InfChest ichest = new InfChest()
-					{
-						items = chest.item,
-						x = chest.x,
-						y = chest.y,
-						userid = -1
-					};
-
-					DB.addChest(ichest);
-					converted++;
-				}
-				Main.chest[i] = null;
-			}
-			if (converted > 0)
-			{
-				TSPlayer.Server.SendInfoMessage("[InfChests] Converted " + converted + " chest(s).");
-				WorldFile.saveWorld();
-			}
+			convertChests();
 		}
 
 		private async void onGetData(GetDataEventArgs args)
 		{
+			if (notInfChests)
+				return;
+
 			using (var reader = new BinaryReader(new MemoryStream(args.Msg.readBuffer, args.Index, args.Length)))
 			{
 				switch (args.MsgID)
@@ -101,7 +84,10 @@ namespace InfChests
 					case PacketTypes.ChestGetContents: //31 GetContents
 						short tilex = reader.ReadInt16();
 						short tiley = reader.ReadInt16();
-						await Task<bool>.Factory.StartNew( () => getChestContents(args.Msg.whoAmI, tilex, tiley));
+						if (lockChests)
+							TShock.Players[args.Msg.whoAmI].SendWarningMessage("Chest conversion in progress. Please wait.");
+						else
+							await Task<bool>.Factory.StartNew( () => getChestContents(args.Msg.whoAmI, tilex, tiley));
 						args.Handled = true;
 						break;
 					case PacketTypes.ChestItem: //22 ChestItem
@@ -362,9 +348,15 @@ namespace InfChests
 		}
 		#endregion
 
-		#region Chest Command
+		#region Chest Commands
 		private void ChestCMD(CommandArgs args)
 		{
+			if (notInfChests)
+			{
+				args.Player.SendErrorMessage("InfiniteChests are not enabled on this server.");
+				return;
+			}
+
 			if (args.Parameters.Count == 0 || args.Parameters[0].ToLower() == "help")
 			{
 				args.Player.SendErrorMessage("Invalid syntax:");
@@ -456,7 +448,61 @@ namespace InfChests
 					break;
 			}
 		}
+
+		private async void ConvChests(CommandArgs args)
+		{
+			if (args.Parameters.Count > 0 && args.Parameters[0].ToLower() == "-r")
+			{
+				if (DB.getChestCount() > 1000)
+				{
+					args.Player.SendErrorMessage("There are more than 1000 chests in the database, which is more than the map can hold.");
+					return;
+				}
+				if (playerData.Any(p => p.Value.mainid != -1))
+				{
+					args.Player.SendErrorMessage("This command cannot be ran while chests are in use.");
+					return;
+				}
+				args.Player.SendWarningMessage("Restoring chests. Please wait...");
+				await Task.Factory.StartNew(() => DB.restoreChests());
+				args.Player.SendSuccessMessage("Restored chests. InfiniteChest features are now disabled.");
+				return;
+			}
+
+			int converted = convertChests();
+			args.Player.SendSuccessMessage($"Converted {converted} chest(s).");
+			notInfChests = false;
+		}
 		#endregion
+
+		private int convertChests()
+		{
+			int converted = 0;
+			for (int i = 0; i < Main.chest.Length; i++)
+			{
+				Chest chest = Main.chest[i];
+				if (chest != null && !playerData.Values.Any(p => p.mainid == i))
+				{
+					InfChest ichest = new InfChest()
+					{
+						items = chest.item,
+						x = chest.x,
+						y = chest.y,
+						userid = -1
+					};
+
+					DB.addChest(ichest);
+					converted++;
+				}
+				Main.chest[i] = null;
+			}
+			if (converted > 0)
+			{
+				TSPlayer.Server.SendInfoMessage("[InfChests] Converted " + converted + " chest(s).");
+				WorldFile.saveWorld();
+			}
+			return converted;
+		}
 	}
 
 	public enum chestAction

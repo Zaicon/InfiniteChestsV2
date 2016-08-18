@@ -110,6 +110,11 @@ namespace InfChests
 						short stack = reader.ReadInt16();
 						byte prefix = reader.ReadByte();
 						short itemid = reader.ReadInt16();
+
+						//If someone sends this packet manually
+						if (Main.chest[chestid] == null)
+							break;
+
 						Chest chest = (Chest)Main.chest[chestid].Clone();
 						chest.item[itemslot] = new Item();
 						chest.item[itemslot].SetDefaults(itemid);
@@ -188,7 +193,7 @@ namespace InfChests
 								}
 								else if(chest2.items.Any(p => p.type != 0))
 								{
-									
+									//Do nothing - ingore tilekill attempt when items are in chest
 								}
 								else
 								{
@@ -201,11 +206,12 @@ namespace InfChests
 						}
 						break;
 					case PacketTypes.ChestName:
+						//Do nothing - we don't handle chest name
 						args.Handled = true;
 						break;
 					case PacketTypes.ForceItemIntoNearestChest:
 						byte invslot = reader.ReadByte();
-
+						//To be implemented in future
 						break;
 				}
 			}
@@ -244,7 +250,8 @@ namespace InfChests
 				case chestAction.info:
 					player.SendInfoMessage($"X: {chest.x} | Y: {chest.y}");
 					string owner = chest.userid == -1 ? "(None)" : TShock.Users.GetUserByID(chest.userid).Name;
-					player.SendInfoMessage($"Chest Owner: {owner}");
+					string ispublic = chest.isPublic ? " (Public)" : "";
+					player.SendInfoMessage($"Chest Owner: {owner}{ispublic}");
 					break;
 				case chestAction.setPassword:
 					if (chest.userid != player.User.ID && !player.HasPermission("infchests.admin.editall"))
@@ -287,7 +294,7 @@ namespace InfChests
 						player.SendErrorMessage("This chest is not claimed!");
 					else
 					{
-						if (DB.setUserID(chest.id, -1))
+						if (DB.setUserID(chest.id, -1) && DB.setPassword(chest.id, ""))
 							player.SendSuccessMessage("This chest is no longer claimed.");
 						else
 						{
@@ -296,10 +303,29 @@ namespace InfChests
 						}
 					}
 					break;
+				case chestAction.togglePublic:
+					if (chest.userid != player.User.ID && !player.HasPermission("infchests.admin.editall"))
+						player.SendErrorMessage("This chest is not yours!");
+					else if (chest.userid == -1)
+						player.SendErrorMessage("This chest is not claimed!");
+					else
+					{
+						if (!DB.setPublic(chest.id, !chest.isPublic))
+						{
+							player.SendErrorMessage("An error occured.");
+							TShock.Log.Error("Error toggling chest protection.");
+							break;
+						}
+						if (chest.isPublic)
+							player.SendSuccessMessage("This chest is now private.");
+						else
+							player.SendSuccessMessage("This chest is now public.");
+					}
+					break;
 				case chestAction.none:
-					if (chest.userid != -1 && !player.IsLoggedIn)
+					if (chest.userid != -1 && !player.IsLoggedIn && !chest.isPublic)
 						player.SendErrorMessage("You must be logged in to use this chest.");
-					else if (chest.userid != -1 && !player.HasPermission("infchests.admin.editall") && chest.userid != player.User.ID && chest.password != playerData[index].password)
+					else if (!chest.isPublic && chest.userid != -1 && !player.HasPermission("infchests.admin.editall") && chest.userid != player.User.ID && chest.password != playerData[index].password)
 					{
 						if (chest.password != string.Empty)
 							player.SendErrorMessage("This chest is password protected.");
@@ -346,6 +372,7 @@ namespace InfChests
 				args.Player.SendErrorMessage("/chest info");
 				args.Player.SendErrorMessage("/chest password <password>");
 				args.Player.SendErrorMessage("/chest unlock <password>");
+				args.Player.SendErrorMessage("/chest public");
 				args.Player.SendErrorMessage("/chest cancel");
 				return;
 			}
@@ -387,9 +414,16 @@ namespace InfChests
 						args.Player.SendSuccessMessage("You can now unlock chests that use this password.");
 					}
 					break;
+				case "public":
+					playerData[args.Player.Index].action = chestAction.togglePublic;
+					args.Player.SendInfoMessage("Open a chest to toggle the chest's public setting.");
+					break;
 				case "cancel":
 					playerData[args.Player.Index].action = chestAction.none;
 					args.Player.SendInfoMessage("Canceled chest action.");
+					break;
+				default:
+					args.Player.SendErrorMessage("Invalid syntax. Use '/chest help' for help.");
 					break;
 			}
 		}
@@ -402,7 +436,7 @@ namespace InfChests
 		info,
 		protect,
 		unProtect,
-		//togglePublic,
+		togglePublic,
 		//setRefill
 		setPassword
 	}

@@ -7,7 +7,8 @@ This is a completely rewritten version of MarioE's original InfiniteChests plugi
 - [x] Users can interact (add, modify, or destory) database chests.
 - [x] Users can protect their chests via user account.
 - [x] Users can protect their chests via password.
-- [ ] Users can set their chests to "public" (other players can freely modify).
+- [x] Users can set their chests to "public" (other players can freely modify).
+- [ ] Permissions for individual functions.
 - [ ] Chests refill items (immediately or with a timer).
 - [ ] "Quick Stack To Nearby Chests" supported.
 - [ ] Converting database chests back to map chests.

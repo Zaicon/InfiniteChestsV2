@@ -12,6 +12,7 @@ namespace InfChests
 		public int userid;
 		public Item[] items;
 		public string password;
+		public bool isPublic;
 
 		public override string ToString()
 		{

@@ -46,14 +46,14 @@ namespace InfChests
 				new SqlColumn("Y", MySqlDbType.Int32) { Length = 6 },
 				new SqlColumn("Items", MySqlDbType.Text) { Length = 500 },
 				new SqlColumn("Password", MySqlDbType.Text) { Length = 100 },
-				//new SqlColumn("Public", MySqlDbType.Int32) { Length = 1 }, <--Not Implemented Yet-->
+				new SqlColumn("Public", MySqlDbType.Int32) { Length = 1 },
 				//new SqlColumn("RefillTime", MySqlDbType.Int32) { Length = 5 }, <--Not Implemented Yet-->
 				new SqlColumn("WorldID", MySqlDbType.Int32) { Length = 15 }));
 		}
 
 		public static bool addChest(InfChest _chest)
 		{
-			string query = $"INSERT INTO InfChests (UserID, X, Y, Items, WorldID) VALUES ({_chest.userid}, {_chest.x}, {_chest.y}, '{_chest.ToString()}', {Main.worldID})";
+			string query = $"INSERT INTO InfChests (UserID, X, Y, Items, Public, WorldID) VALUES ({_chest.userid}, {_chest.x}, {_chest.y}, '{_chest.ToString()}', {0}, {Main.worldID})";
 			int result = db.Query(query);
 			if (result == 1)
 				return true;
@@ -84,7 +84,8 @@ namespace InfChests
 						userid = reader.Get<int>("UserID"),
 						x = tilex,
 						y = tiley,
-						password = reader.Get<string>("Password")
+						password = reader.Get<string>("Password"),
+						isPublic = reader.Get<int>("Public") == 1 ? true : false
 					};
 					chest.setItemsFromString(reader.Get<string>("Items"));
 
@@ -120,6 +121,17 @@ namespace InfChests
 			InfChest chest = new InfChest();
 			chest.items = items;
 			string query = $"UPDATE InfChests SET Items = '{chest.ToString()}' WHERE ID = {id} AND WorldID = {Main.worldID}";
+			int result = db.Query(query);
+			if (result != 1)
+				return false;
+			else
+				return true;
+		}
+
+		public static bool setPublic(int id, bool isPublic)
+		{
+			int num = isPublic ? 1 : 0;
+			string query = $"UPDATE InfChests SET Public = {num} WHERE ID = {id} AND WorldID = {Main.worldID}";
 			int result = db.Query(query);
 			if (result != 1)
 				return false;

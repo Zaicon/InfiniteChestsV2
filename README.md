@@ -13,7 +13,7 @@ This is a completely rewritten version of MarioE's original InfiniteChests plugi
 - [x] Chests refill items (immediately or with a timer).
 - [ ] "Quick Stack To Nearby Chests" supported.
 - [x] Converting database chests back to map chests.
-- [ ] Pruning empty and/or corrupted chests.
+- [x] Pruning empty chests.
 
 ### Things this plugin will not do (as of now):
 * Chest name support. Chest names are stored in tile data, which would be very costly to implement.
@@ -30,6 +30,7 @@ This is a completely rewritten version of MarioE's original InfiniteChests plugi
 /chest refill <seconds> - Sets the interval in which chests refill items.
 /chest cancel - Cancels any of the above actions.
 /convchests [-r] - Converts any "real" chests to database chests (or reverse with `-r`)
+/prunechests - Permanently removes empty chests from the world and database.
 ```
 
 ###Permisisons
@@ -42,4 +43,5 @@ ic.protect - Players with this permission will have their chests automatically p
 ic.refill - Enables use of /chest refill
 ic.edit - Allows player to edit any chest regardless of chest protection.
 ic.convert - Enables use of /convchests
+ic.prune - Enables use of /prunechests
 ```

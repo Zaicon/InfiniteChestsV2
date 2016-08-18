@@ -66,6 +66,7 @@ namespace InfChests
 
 			Commands.ChatCommands.Add(new Command("ic.use", ChestCMD, "chest"));
 			Commands.ChatCommands.Add(new Command("ic.convert", ConvChests, "convchests"));
+			Commands.ChatCommands.Add(new Command("ic.prune", PruneChests, "prunechests"));
 		}
 
 		private void onWorldLoaded(EventArgs args)
@@ -219,8 +220,7 @@ namespace InfChests
 			playerData[args.Who] = new Data();
 		}
 		#endregion
-
-		#region ChestActions
+		
 		private bool getChestContents(int index, short tilex, short tiley)
 		{
 			InfChest chest = DB.getChest(tilex, (short)(tiley));
@@ -406,7 +406,6 @@ namespace InfChests
 			
 			return true;
 		}
-		#endregion
 
 		#region Chest Commands
 		private void ChestCMD(CommandArgs args)
@@ -558,6 +557,13 @@ namespace InfChests
 			int converted = convertChests();
 			args.Player.SendSuccessMessage($"Converted {converted} chest(s).");
 			notInfChests = false;
+		}
+
+		private async void PruneChests(CommandArgs args)
+		{
+			args.Player.SendWarningMessage("Pruning empty chests. Please wait...");
+			int results = await Task<int>.Factory.StartNew(() => DB.pruneChests(args.Player.Index));
+			args.Player.SendSuccessMessage($"Destroyed {results} empty chests.");
 		}
 		#endregion
 

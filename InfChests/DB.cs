@@ -188,5 +188,26 @@ namespace InfChests
 			InfChests.lockChests = false;
 			InfChests.notInfChests = true;
 		}
+
+		public static int pruneChests(int index)
+		{
+			string blank = "0,0,0|0,0,0|0,0,0|0,0,0|0,0,0|0,0,0|0,0,0|0,0,0|0,0,0|0,0,0|0,0,0|0,0,0|0,0,0|0,0,0|0,0,0|0,0,0|0,0,0|0,0,0|0,0,0|0,0,0|0,0,0|0,0,0|0,0,0|0,0,0|0,0,0|0,0,0|0,0,0|0,0,0|0,0,0|0,0,0|0,0,0|0,0,0|0,0,0|0,0,0|0,0,0|0,0,0|0,0,0|0,0,0|0,0,0|0,0,0";
+
+			string query = $"SELECT * FROM InfChests WHERE Items = '{blank}' AND WorldID = {Main.worldID}";
+			using (var reader = db.QueryReader(query))
+			{
+				while (reader.Read())
+				{
+					int tilex = reader.Get<int>("X");
+					int tiley = reader.Get<int>("Y");
+					WorldGen.KillTile(tilex, tiley, noItem: true);
+					NetMessage.SendTileSquare(index, tilex, tiley, 3);
+				}
+			}
+
+			query = $"DELETE FROM InfChests WHERE Items = '{blank}' AND WorldID = {Main.worldID}";
+			int count = db.Query(query);
+			return count;
+		}
 	}
 }

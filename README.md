@@ -10,7 +10,7 @@ This is a completely rewritten version of MarioE's original InfiniteChests plugi
 - [x] Users can protect their chests via password.
 - [x] Users can set their chests to "public" (other players can freely modify).
 - [x] Permissions for individual functions.
-- [ ] Chests refill items (immediately or with a timer).
+- [x] Chests refill items (immediately or with a timer).
 - [ ] "Quick Stack To Nearby Chests" supported.
 - [x] Converting database chests back to map chests.
 - [ ] Pruning empty and/or corrupted chests.
@@ -27,6 +27,7 @@ This is a completely rewritten version of MarioE's original InfiniteChests plugi
 /chest password <password> - Password-protects a chest.
 /chest unlock <password> - Allows opening of any chest using that password.
 /chest public - Toggles the 'public' setting of a chest, allowing others to use but not destroy the chest.
+/chest refill <seconds> - Sets the interval in which chests refill items.
 /chest cancel - Cancels any of the above actions.
 /convchests [-r] - Converts any "real" chests to database chests (or reverse with `-r`)
 ```
@@ -38,6 +39,7 @@ ic.claim - Enables use of /chest claim, unclaim, password
 ic.info - Enables use of /chest info
 ic.public - Enables use of /chest public
 ic.protect - Players with this permission will have their chests automatically protected via user account.
+ic.refill - Enables use of /chest refill
 ic.edit - Allows player to edit any chest regardless of chest protection.
 ic.convert - Enables use of /convchests
 ```

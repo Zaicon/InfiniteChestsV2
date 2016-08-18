@@ -53,6 +53,7 @@ namespace InfChests
 		private static Dictionary<int, Data> playerData = new Dictionary<int, Data>();
 		internal static bool lockChests = false;
 		internal static bool notInfChests = false;
+		private static List<Tuple<int, Item[], int, DateTime>> refillInfo = new List<Tuple<int, Item[], int, DateTime>>();
 
 		#region Hooks
 		private void onInitialize(EventArgs args)
@@ -106,6 +107,16 @@ namespace InfChests
 						chest.item[itemslot].SetDefaults(itemid);
 						chest.item[itemslot].stack = stack;
 						chest.item[itemslot].prefix = prefix;
+
+						//If chest is refillable, only edit local copy
+						if (refillInfo.Exists(p => p.Item1 == playerData[args.Msg.whoAmI].dbid))
+						{
+							int index = refillInfo.FindIndex(p => p.Item1 == playerData[args.Msg.whoAmI].dbid);
+							var t = new Tuple<int, Item[], int, DateTime>(refillInfo[index].Item1, chest.item, refillInfo[index].Item3, refillInfo[index].Item4);
+							refillInfo[index] = t;
+							return;
+						}
+
 						if (!DB.setItems(playerData[args.Msg.whoAmI].dbid, chest.item))
 							TShock.Log.Error("Error updating items in DB.");
 						break;
@@ -237,7 +248,8 @@ namespace InfChests
 					player.SendInfoMessage($"X: {chest.x} | Y: {chest.y}");
 					string owner = chest.userid == -1 ? "(None)" : TShock.Users.GetUserByID(chest.userid).Name;
 					string ispublic = chest.isPublic ? " (Public)" : "";
-					player.SendInfoMessage($"Chest Owner: {owner}{ispublic}");
+					string isrefill = chest.refillTime > 0 ? $" (Refill: {chest.refillTime})" : "";
+					player.SendInfoMessage($"Chest Owner: {owner}{ispublic}{isrefill}");
 					break;
 				case chestAction.setPassword:
 					if (chest.userid != player.User.ID && !player.HasPermission("ic.edit"))
@@ -308,6 +320,29 @@ namespace InfChests
 							player.SendSuccessMessage("This chest is now public.");
 					}
 					break;
+				case chestAction.setRefill:
+					if (chest.userid != player.User.ID && !player.HasPermission("ic.edit"))
+						player.SendErrorMessage("This chest is not yours!");
+					else if (chest.userid == -1)
+						player.SendErrorMessage("This chest is not claimed!");
+					else
+					{
+						if (!DB.setRefill(chest.id, playerData[player.Index].refillTime))
+						{
+							player.SendErrorMessage("An error occured.");
+							TShock.Log.Error("Error setting chest refill.");
+						}
+						else
+						{
+							if (playerData[player.Index].refillTime == 0)
+								player.SendSuccessMessage("Removed this chest's auto-refill.");
+							else
+								player.SendSuccessMessage("Set refill time to " + playerData[player.Index].refillTime + " seconds.");
+
+							refillInfo.RemoveAll(p => p.Item1 == chest.id);
+						}
+					}
+					break;
 				case chestAction.none:
 					if (chest.userid != -1 && !player.IsLoggedIn && !chest.isPublic)
 						player.SendErrorMessage("You must be logged in to use this chest.");
@@ -324,9 +359,34 @@ namespace InfChests
 						if (chestindex == -1)
 							throw new Exception("No empty chests!");
 
+						Item[] writeItems;
+
+						if (chest.refillTime > 0)
+						{
+							if (refillInfo.Exists(p => p.Item1 == chest.id))
+							{
+								int cindex = refillInfo.FindIndex(p => p.Item1 == chest.id);
+								if ((DateTime.Now - refillInfo[cindex].Item4).Seconds > chest.refillTime)
+								{
+									refillInfo.RemoveAt(cindex);
+									writeItems = chest.items;
+									refillInfo.Add(new Tuple<int, Item[], int, DateTime>(chest.id, chest.items, chest.refillTime, DateTime.Now));
+								}
+								else
+									writeItems = refillInfo[cindex].Item2;
+							}
+							else
+							{
+								writeItems = chest.items;
+								refillInfo.Add(new Tuple<int, Item[], int, DateTime>(chest.id, chest.items, chest.refillTime, DateTime.Now));
+							}
+						}
+						else
+							writeItems = chest.items;
+
 						Main.chest[chestindex] = new Chest()
 						{
-							item = chest.items,
+							item = writeItems,
 							x = chest.x,
 							y = chest.y
 						};
@@ -369,6 +429,8 @@ namespace InfChests
 				args.Player.SendErrorMessage("/chest unlock <password>");
 				if (args.Player.HasPermission("ic.public"))
 					args.Player.SendErrorMessage("/chest public");
+				if (args.Player.HasPermission("ic.refill"))
+					args.Player.SendErrorMessage("/chest refill <seconds>");
 				args.Player.SendErrorMessage("/chest cancel");
 				return;
 			}
@@ -438,6 +500,30 @@ namespace InfChests
 					}
 					playerData[args.Player.Index].action = chestAction.togglePublic;
 					args.Player.SendInfoMessage("Open a chest to toggle the chest's public setting.");
+					break;
+				case "refill":
+					if (!args.Player.HasPermission("ic.refill"))
+					{
+						args.Player.SendErrorMessage("You do not have permission to set a chest's refill time.");
+						break;
+					}
+					if (args.Parameters.Count != 2) // /chest refill <time>
+					{
+						args.Player.SendErrorMessage("Invalid syntax: /chest refill <seconds>");
+						break;
+					}
+					int refillTime;
+					if (!int.TryParse(args.Parameters[1], out refillTime) || refillTime < 0 || refillTime > 99999)
+					{
+						args.Player.SendErrorMessage("Invalid refill time.");
+						break;
+					}
+					playerData[args.Player.Index].action = chestAction.setRefill;
+					playerData[args.Player.Index].refillTime = refillTime;
+					if (refillTime != 0)
+						args.Player.SendInfoMessage("Open a chest to set its refill time to " + refillTime + " seconds.");
+					else
+						args.Player.SendInfoMessage("Open a chest to remove auto-refill.");
 					break;
 				case "cancel":
 					playerData[args.Player.Index].action = chestAction.none;
@@ -512,7 +598,7 @@ namespace InfChests
 		protect,
 		unProtect,
 		togglePublic,
-		//setRefill
+		setRefill,
 		setPassword
 	}
 }

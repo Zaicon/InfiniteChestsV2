@@ -48,13 +48,13 @@ namespace InfChests
 				new SqlColumn("Items", MySqlDbType.Text) { Length = 500 },
 				new SqlColumn("Password", MySqlDbType.Text) { Length = 100 },
 				new SqlColumn("Public", MySqlDbType.Int32) { Length = 1 },
-				//new SqlColumn("RefillTime", MySqlDbType.Int32) { Length = 5 }, <--Not Implemented Yet-->
+				new SqlColumn("Refill", MySqlDbType.Int32) { Length = 5 },
 				new SqlColumn("WorldID", MySqlDbType.Int32) { Length = 15 }));
 		}
 
 		public static bool addChest(InfChest _chest)
 		{
-			string query = $"INSERT INTO InfChests (UserID, X, Y, Items, Public, WorldID) VALUES ({_chest.userid}, {_chest.x}, {_chest.y}, '{_chest.ToString()}', {0}, {Main.worldID})";
+			string query = $"INSERT INTO InfChests (UserID, X, Y, Items, Public, Refill, WorldID) VALUES ({_chest.userid}, {_chest.x}, {_chest.y}, '{_chest.ToString()}', {0}, {0}, {Main.worldID})";
 			int result = db.Query(query);
 			if (result == 1)
 				return true;
@@ -86,7 +86,8 @@ namespace InfChests
 						x = tilex,
 						y = tiley,
 						password = reader.Get<string>("Password"),
-						isPublic = reader.Get<int>("Public") == 1 ? true : false
+						isPublic = reader.Get<int>("Public") == 1 ? true : false,
+						refillTime = reader.Get<int>("Refill")
 					};
 					chest.setItemsFromString(reader.Get<string>("Items"));
 
@@ -133,6 +134,16 @@ namespace InfChests
 		{
 			int num = isPublic ? 1 : 0;
 			string query = $"UPDATE InfChests SET Public = {num} WHERE ID = {id} AND WorldID = {Main.worldID}";
+			int result = db.Query(query);
+			if (result != 1)
+				return false;
+			else
+				return true;
+		}
+
+		public static bool setRefill(int id, int seconds)
+		{
+			string query = $"UPDATE InfChests SET Refill = {seconds} WHERE ID = {id} AND WorldID = {Main.worldID}";
 			int result = db.Query(query);
 			if (result != 1)
 				return false;

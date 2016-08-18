@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Text;
 using Terraria;
 
@@ -13,6 +14,7 @@ namespace InfChests
 		public Item[] items;
 		public string password;
 		public bool isPublic;
+		public int refillTime;
 
 		public override string ToString()
 		{

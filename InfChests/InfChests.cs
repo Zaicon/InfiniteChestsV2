@@ -61,7 +61,7 @@ namespace InfChests
 				playerData.Add(i, new Data());
 			}
 
-			Commands.ChatCommands.Add(new Command("infchests.chest.use", ChestCMD, "chest"));
+			Commands.ChatCommands.Add(new Command("ic.use", ChestCMD, "chest"));
 		}
 
 		private void onWorldLoaded(EventArgs args)
@@ -164,7 +164,7 @@ namespace InfChests
 								DB.addChest(new InfChest()
 								{
 									items = Main.chest[chestnum].item,
-									userid = TShock.Players[args.Msg.whoAmI].HasPermission("infchests.chest.protect") ? TShock.Players[args.Msg.whoAmI].User.ID : -1,
+									userid = TShock.Players[args.Msg.whoAmI].HasPermission("ic.protect") ? TShock.Players[args.Msg.whoAmI].User.ID : -1,
 									x = Main.chest[chestnum].x,
 									y = Main.chest[chestnum].y
 								});
@@ -187,7 +187,7 @@ namespace InfChests
 								{
 									WorldGen.KillTile(tilex, tiley);
 								}
-								else if (chest2.userid != -1 && !player.HasPermission("infchests.admin.editall") && chest2.userid != player.User.ID)
+								else if (chest2.userid != -1 && !player.HasPermission("ic.edit") && chest2.userid != player.User.ID)
 								{
 									player.SendErrorMessage("This chest is protected.");
 								}
@@ -254,7 +254,7 @@ namespace InfChests
 					player.SendInfoMessage($"Chest Owner: {owner}{ispublic}");
 					break;
 				case chestAction.setPassword:
-					if (chest.userid != player.User.ID && !player.HasPermission("infchests.admin.editall"))
+					if (chest.userid != player.User.ID && !player.HasPermission("ic.edit"))
 					{
 						player.SendErrorMessage("This chest is not yours.");
 					}
@@ -274,7 +274,7 @@ namespace InfChests
 				case chestAction.protect:
 					if (chest.userid == player.User.ID)
 						player.SendErrorMessage("This chest is already claimed by you!");
-					else if (chest.userid != -1 && !player.HasPermission("infchests.admin.editall"))
+					else if (chest.userid != -1 && !player.HasPermission("ic.edit"))
 						player.SendErrorMessage("This chest is already claimed by someone else!");
 					else
 					{
@@ -288,7 +288,7 @@ namespace InfChests
 					}
 					break;
 				case chestAction.unProtect:
-					if (chest.userid != player.User.ID && !player.HasPermission("infchests.admin.editall"))
+					if (chest.userid != player.User.ID && !player.HasPermission("ic.edit"))
 						player.SendErrorMessage("This chest is not yours!");
 					else if (chest.userid == -1)
 						player.SendErrorMessage("This chest is not claimed!");
@@ -304,7 +304,7 @@ namespace InfChests
 					}
 					break;
 				case chestAction.togglePublic:
-					if (chest.userid != player.User.ID && !player.HasPermission("infchests.admin.editall"))
+					if (chest.userid != player.User.ID && !player.HasPermission("ic.edit"))
 						player.SendErrorMessage("This chest is not yours!");
 					else if (chest.userid == -1)
 						player.SendErrorMessage("This chest is not claimed!");
@@ -325,7 +325,7 @@ namespace InfChests
 				case chestAction.none:
 					if (chest.userid != -1 && !player.IsLoggedIn && !chest.isPublic)
 						player.SendErrorMessage("You must be logged in to use this chest.");
-					else if (!chest.isPublic && chest.userid != -1 && !player.HasPermission("infchests.admin.editall") && chest.userid != player.User.ID && chest.password != playerData[index].password)
+					else if (!chest.isPublic && chest.userid != -1 && !player.HasPermission("ic.edit") && chest.userid != player.User.ID && chest.password != playerData[index].password)
 					{
 						if (chest.password != string.Empty)
 							player.SendErrorMessage("This chest is password protected.");
@@ -368,11 +368,15 @@ namespace InfChests
 			if (args.Parameters.Count == 0 || args.Parameters[0].ToLower() == "help")
 			{
 				args.Player.SendErrorMessage("Invalid syntax:");
-				args.Player.SendErrorMessage("/chest <claim/unclaim>");
-				args.Player.SendErrorMessage("/chest info");
-				args.Player.SendErrorMessage("/chest password <password>");
+				if (args.Player.HasPermission("ic.claim"))
+					args.Player.SendErrorMessage("/chest <claim/unclaim>");
+				if (args.Player.HasPermission("ic.info"))
+					args.Player.SendErrorMessage("/chest info");
+				if (args.Player.HasPermission("ic.claim"))
+					args.Player.SendErrorMessage("/chest password <password>");
 				args.Player.SendErrorMessage("/chest unlock <password>");
-				args.Player.SendErrorMessage("/chest public");
+				if (args.Player.HasPermission("ic.public"))
+					args.Player.SendErrorMessage("/chest public");
 				args.Player.SendErrorMessage("/chest cancel");
 				return;
 			}
@@ -380,18 +384,38 @@ namespace InfChests
 			switch (args.Parameters[0].ToLower())
 			{
 				case "claim":
+					if (!args.Player.HasPermission("ic.claim"))
+					{
+						args.Player.SendErrorMessage("You do not have permission to claim chests.");
+						break;
+					}
 					args.Player.SendInfoMessage("Open a chest to claim it.");
 					playerData[args.Player.Index].action = chestAction.protect;
 					break;
 				case "unclaim":
+					if (!args.Player.HasPermission("ic.claim"))
+					{
+						args.Player.SendErrorMessage("You do not have permission to claim chests.");
+						break;
+					}
 					args.Player.SendInfoMessage("Open a chest to unclaim it.");
 					playerData[args.Player.Index].action = chestAction.unProtect;
 					break;
 				case "info":
+					if (!args.Player.HasPermission("ic.info"))
+					{
+						args.Player.SendErrorMessage("You do not have permission to view chest info.");
+						break;
+					}
 					args.Player.SendInfoMessage("Open a chest to get information about it.");
 					playerData[args.Player.Index].action = chestAction.info;
 					break;
 				case "password":
+					if (!args.Player.HasPermission("ic.claim"))
+					{
+						args.Player.SendErrorMessage("You do not have permission to password-protect chests.");
+						break;
+					}
 					if (args.Parameters.Count == 1)
 					{
 						args.Player.SendInfoMessage("Open a chest to remove its password.");
@@ -415,6 +439,11 @@ namespace InfChests
 					}
 					break;
 				case "public":
+					if (!args.Player.HasPermission("ic.public"))
+					{
+						args.Player.SendErrorMessage("You do not have permission to change a chest's public setting.");
+						break;
+					}
 					playerData[args.Player.Index].action = chestAction.togglePublic;
 					args.Player.SendInfoMessage("Open a chest to toggle the chest's public setting.");
 					break;

@@ -3,12 +3,13 @@
 This is a completely rewritten version of MarioE's original InfiniteChests plugin. Most of this plugin was copied or modified from that one.
 
 ### Plugin Checklist:
-- [x] Converting map chests to database chests.
+- [x] Converting map chests to database chests upon server start.
+- [ ] || via command.
 - [x] Users can interact (add, modify, or destory) database chests.
 - [x] Users can protect their chests via user account.
 - [x] Users can protect their chests via password.
 - [x] Users can set their chests to "public" (other players can freely modify).
-- [ ] Permissions for individual functions.
+- [x] Permissions for individual functions.
 - [ ] Chests refill items (immediately or with a timer).
 - [ ] "Quick Stack To Nearby Chests" supported.
 - [ ] Converting database chests back to map chests.
@@ -25,12 +26,16 @@ This is a completely rewritten version of MarioE's original InfiniteChests plugi
 /chest info - Displays X/Y coordinates and account owner.
 /chest password <password> - Password-protects a chest.
 /chest unlock <password> - Allows opening of any chest using that password.
+/chest public - Toggles the 'public' setting of a chest, allowing others to use but not destroy the chest.
 /chest cancel - Cancels any of the above actions.
 ```
 
 ###Permisisons
 ```
-infchests.chest.use - Enables use of /chest -- Will have separate permissions for chest subcommands soon.
-infchests.chest.protect - Players with this permission will have their chests automatically protected via user account.
-infchests.admin.editall - Allows player to edit any chest regardless of chest protection.
+ic.use - Enables use of /chest
+ic.claim - Enables use of /chest claim, unclaim, password
+ic.info - Enables use of /chest info
+ic.public - Enables use of /chest public
+ic.protect - Players with this permission will have their chests automatically protected via user account.
+ic.edit - Allows player to edit any chest regardless of chest protection.
 ```

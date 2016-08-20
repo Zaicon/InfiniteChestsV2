@@ -50,10 +50,10 @@ namespace InfChests
 		}
 		#endregion
 
-		private static Dictionary<int, Data> playerData = new Dictionary<int, Data>();
+		internal static Dictionary<int, Data> playerData = new Dictionary<int, Data>();
 		internal static bool lockChests = false;
 		internal static bool notInfChests = false;
-		private static List<Tuple<int, Item[], int, DateTime>> refillInfo = new List<Tuple<int, Item[], int, DateTime>>();
+		private static List<Tuple<int, Item[], DateTime>> refillInfo = new List<Tuple<int, Item[], DateTime>>();
 
 		#region Hooks
 		private void onInitialize(EventArgs args)
@@ -61,7 +61,7 @@ namespace InfChests
 			DB.Connect();
 			for (int i = 0; i < TShock.Players.Length; i++)
 			{
-				playerData.Add(i, new Data());
+				playerData.Add(i, new Data(i));
 			}
 
 			Commands.ChatCommands.Add(new Command("ic.use", ChestCMD, "chest"));
@@ -113,7 +113,7 @@ namespace InfChests
 						if (refillInfo.Exists(p => p.Item1 == playerData[args.Msg.whoAmI].dbid))
 						{
 							int index = refillInfo.FindIndex(p => p.Item1 == playerData[args.Msg.whoAmI].dbid);
-							var t = new Tuple<int, Item[], int, DateTime>(refillInfo[index].Item1, chest.item, refillInfo[index].Item3, refillInfo[index].Item4);
+							var t = new Tuple<int, Item[], DateTime>(refillInfo[index].Item1, chest.item, refillInfo[index].Item3);
 							refillInfo[index] = t;
 							return;
 						}
@@ -209,7 +209,17 @@ namespace InfChests
 						break;
 					case PacketTypes.ForceItemIntoNearestChest:
 						byte invslot = reader.ReadByte();
-						//To be implemented in future
+						//At the moment, we only allow quickstacking for chest owners & users with edit perm & users with correct password & non-refilling chests
+						if (TShock.Players[args.Msg.whoAmI].IsLoggedIn)
+						{
+							playerData[args.Msg.whoAmI].slotQueue.Add(invslot);
+							if (playerData[args.Msg.whoAmI].slotQueue.Count == 1)
+							{
+								playerData[args.Msg.whoAmI].quickStackTimer.Start();
+								playerData[args.Msg.whoAmI].location = new Point(TShock.Players[args.Msg.whoAmI].TileX, TShock.Players[args.Msg.whoAmI].TileY);
+							}
+						}
+						args.Handled = true;
 						break;
 				}
 			}
@@ -217,7 +227,7 @@ namespace InfChests
 
 		private void onLeave(LeaveEventArgs args)
 		{
-			playerData[args.Who] = new Data();
+			playerData[args.Who] = new Data(args.Who);
 		}
 		#endregion
 		
@@ -366,11 +376,11 @@ namespace InfChests
 							if (refillInfo.Exists(p => p.Item1 == chest.id))
 							{
 								int cindex = refillInfo.FindIndex(p => p.Item1 == chest.id);
-								if ((DateTime.Now - refillInfo[cindex].Item4).Seconds > chest.refillTime)
+								if ((DateTime.Now - refillInfo[cindex].Item3).Seconds > chest.refillTime)
 								{
 									refillInfo.RemoveAt(cindex);
 									writeItems = chest.items;
-									refillInfo.Add(new Tuple<int, Item[], int, DateTime>(chest.id, chest.items, chest.refillTime, DateTime.Now));
+									refillInfo.Add(new Tuple<int, Item[], DateTime>(chest.id, chest.items, DateTime.Now));
 								}
 								else
 									writeItems = refillInfo[cindex].Item2;
@@ -378,7 +388,7 @@ namespace InfChests
 							else
 							{
 								writeItems = chest.items;
-								refillInfo.Add(new Tuple<int, Item[], int, DateTime>(chest.id, chest.items, chest.refillTime, DateTime.Now));
+								refillInfo.Add(new Tuple<int, Item[], DateTime>(chest.id, chest.items, DateTime.Now));
 							}
 						}
 						else
@@ -594,6 +604,17 @@ namespace InfChests
 				WorldFile.saveWorld();
 			}
 			return converted;
+		}
+
+		private void ForceItems(int index, int playerSlot)
+		{
+			TSPlayer player = TShock.Players[index];
+			Item playerItem = player.TPlayer.inventory[playerSlot];
+
+			//Debug
+			player.TPlayer.inventory[playerSlot] = new Item();
+			NetMessage.SendData((int)PacketTypes.PlayerSlot, -1, -1, "", index, playerSlot);
+			TSPlayer.All.SendInfoMessage("Deleted slot " + playerSlot);
 		}
 	}
 

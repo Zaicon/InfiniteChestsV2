@@ -11,13 +11,14 @@ This is a completely rewritten version of MarioE's original InfiniteChests plugi
 - [x] Users can set their chests to "public" (other players can freely modify).
 - [x] Permissions for individual functions.
 - [x] Chests refill items (immediately or with a timer).
-- [ ] "Quick Stack To Nearby Chests" supported.
+- [x] "Quick Stack To Nearby Chests" supported.
 - [x] Converting database chests back to map chests.
 - [x] Pruning empty chests.
+- [ ] Adding users and/or groups to chests.
+- [ ] Saving/loading chests across maps.
 
 ### Things this plugin will not do (as of now):
 * Chest name support. Chest names are stored in tile data, which would be very costly to implement.
-* "Bank" chests. In the future, I would like to have a way to save chests across maps. However, it is not currently a priority.
 
 ### Commands
 ```

@@ -1,6 +1,7 @@
 ﻿using Mono.Data.Sqlite;
 using MySql.Data.MySqlClient;
 using System;
+using System.Collections.Generic;
 using System.Data;
 using System.IO;
 using Terraria;
@@ -50,7 +51,34 @@ namespace InfChests
 				new SqlColumn("Public", MySqlDbType.Int32) { Length = 1 },
 				new SqlColumn("Refill", MySqlDbType.Int32) { Length = 5 },
 				new SqlColumn("WorldID", MySqlDbType.Int32) { Length = 15 }));
+
+			//sqlcreator.EnsureTableStructure(new SqlTable("ChestItems",
+			//	new SqlColumn("ID", MySqlDbType.Int32) { Primary = true, Unique = true, Length = 10, AutoIncrement = true },
+			//	new SqlColumn("Slot", MySqlDbType.Int32) { Length = 2 },
+			//	new SqlColumn("Type", MySqlDbType.Int32) { Length = 4 },
+			//	new SqlColumn("Stack", MySqlDbType.Int32) { Length = 3 },
+			//	new SqlColumn("Prefix", MySqlDbType.Int32) { Length = 2 },
+			//	new SqlColumn("ChestID", MySqlDbType.Int32) { Length = 7 }));
+
+			//db.Execute("ALTER TABLE ChestItems ADD FOREIGN KEY (ChestID) REFERENCES InfChests(ID);");
 		}
+
+		//public static bool addChest(InfChest _chest)
+		//{
+		//	string query = $"INSERT INTO InfChests (UserID, X, Y, Items, Public, Refill, WorldID) VALUES ({_chest.userid}, {_chest.x}, {_chest.y}, '{_chest.ToString()}', {0}, {0}, {Main.worldID})";
+		//string query = "INSERT INTO InfChests (UserID, X, Y, Public, Refill, WorldID) VALUES (@userid, @x, @y, @public, @refill, @worldid);";
+		//int result = db.Execute(query, new { userid = _chest.userid, x = _chest.x, y = _chest.y, @public = _chest.isPublic, refill = _chest.refillTime, worldid = Main.worldID});
+		//	int result = db.Query(query);
+		//	if (result != 1)
+		//	{
+		//		TShock.Log.ConsoleError("Unable to add Chest to database.");
+		//		return false;
+		//	}
+		//foreach (InfItem item in _chest.items)
+		//{
+		//	query = "INSERT INTO "
+		//}
+		//}
 
 		public static bool addChest(InfChest _chest)
 		{
@@ -117,7 +145,7 @@ namespace InfChests
 			else
 				return true;
 		}
-		
+
 		public static bool setItems(int id, Item[] items)
 		{
 			InfChest chest = new InfChest();
@@ -208,6 +236,34 @@ namespace InfChests
 			query = $"DELETE FROM InfChests WHERE Items = '{blank}' AND WorldID = {Main.worldID}";
 			int count = db.Query(query);
 			return count;
+		}
+
+		public static List<InfChest> getNearbyChests(Point point)
+		{
+			int x1 = point.X - 25;
+			int x2 = point.X + 25;
+			int y1 = point.Y - 8;
+			int y2 = point.Y + 8;
+
+			List<InfChest> chests = new List<InfChest>();
+
+			string query = $"SELECT * FROM InfChests WHERE WorldID = {Main.worldID} AND X > {x1} AND X < {x2} AND Y > {y1} AND Y < {y2}";
+			using (var reader = db.QueryReader(query))
+			{
+				while (reader.Read())
+				{
+					chests.Add(new InfChest() {
+						id = reader.Get<int>("ID"),
+						password = reader.Get<string>("Password"),
+						refillTime = reader.Get<int>("Refill"),
+						userid = reader.Get<int>("UserID")
+					});
+					chests[chests.Count - 1].setItemsFromString(reader.Get<string>("Items"));
+					//Not filling other stuff since it's not used in NearbyChests
+				}
+			}
+
+			return chests;
 		}
 	}
 }

@@ -260,6 +260,20 @@ namespace InfChests
 					string ispublic = chest.isPublic ? " (Public)" : "";
 					string isrefill = chest.refillTime > 0 ? $" (Refill: {chest.refillTime})" : "";
 					player.SendInfoMessage($"Chest Owner: {owner}{ispublic}{isrefill}");
+					if (chest.groups.Count > 0)
+					{
+						string info = string.Join(", ", chest.groups);
+						player.SendInfoMessage($"Groups Allowed: {info}");
+					}
+					else
+						player.SendInfoMessage("Groups Allowed: (None)");
+					if (chest.users.Count > 0)
+					{
+						string info = string.Join(", ", chest.users.Select(p => TShock.Users.GetUserByID(p).Name));
+						player.SendInfoMessage($"Users Allowed: {info}");
+					}
+					else
+						player.SendInfoMessage("Users Allowed: (None)");
 					break;
 				case chestAction.setPassword:
 					if (chest.userid != player.User.ID && !player.HasPermission("ic.edit"))
@@ -308,6 +322,74 @@ namespace InfChests
 						{
 							player.SendErrorMessage("An error occured.");
 							TShock.Log.Error("Error setting chest un-protection.");
+						}
+					}
+					break;
+				case chestAction.allowUser:
+					if (chest.userid != player.User.ID && !player.HasPermission("ic.edit"))
+						player.SendErrorMessage("This chest is not yours!");
+					else if (chest.userid == -1)
+						player.SendErrorMessage("This chest is not claimed!");
+					else
+					{
+						if (chest.users.Contains(playerData[index].userIDToChange))
+							player.SendErrorMessage("That user already has access to this chest!");
+						else
+						{
+							chest.users.Add(playerData[index].userIDToChange);
+							DB.setUsers(chest.id, chest.users);
+							player.SendSuccessMessage("Added user to chest.");
+						}
+					}
+					break;
+				case chestAction.removeUser:
+					if (chest.userid != player.User.ID && !player.HasPermission("ic.edit"))
+						player.SendErrorMessage("This chest is not yours!");
+					else if (chest.userid == -1)
+						player.SendErrorMessage("This chest is not claimed!");
+					else
+					{
+						if (!chest.users.Contains(playerData[index].userIDToChange))
+							player.SendErrorMessage("That user does not have access to this chest.");
+						else
+						{
+							chest.users.Remove(playerData[index].userIDToChange);
+							DB.setUsers(chest.id, chest.users);
+							player.SendSuccessMessage("Removed user to chest.");
+						}
+					}
+					break;
+				case chestAction.allowGroup:
+					if (chest.userid != player.User.ID && !player.HasPermission("ic.edit"))
+						player.SendErrorMessage("This chest is not yours!");
+					else if (chest.userid == -1)
+						player.SendErrorMessage("This chest is not claimed!");
+					else
+					{
+						if (chest.groups.Contains(playerData[index].groupToChange))
+							player.SendErrorMessage("That group already has access to this chest!");
+						else
+						{
+							chest.groups.Add(playerData[index].groupToChange);
+							DB.setGroups(chest.id, chest.groups);
+							player.SendSuccessMessage("Added group to chest.");
+						}
+					}
+					break;
+				case chestAction.removeGroup:
+					if (chest.userid != player.User.ID && !player.HasPermission("ic.edit"))
+						player.SendErrorMessage("This chest is not yours!");
+					else if (chest.userid == -1)
+						player.SendErrorMessage("This chest is not claimed!");
+					else
+					{
+						if (!chest.groups.Contains(playerData[index].groupToChange))
+							player.SendErrorMessage("That group does not have access to this chest.");
+						else
+						{
+							chest.groups.Remove(playerData[index].groupToChange);
+							DB.setGroups(chest.id, chest.groups);
+							player.SendSuccessMessage("Removed group from chest.");
 						}
 					}
 					break;
@@ -428,19 +510,35 @@ namespace InfChests
 
 			if (args.Parameters.Count == 0 || args.Parameters[0].ToLower() == "help")
 			{
+				List<string> help = new List<string>();
+
 				args.Player.SendErrorMessage("Invalid syntax:");
 				if (args.Player.HasPermission("ic.claim"))
-					args.Player.SendErrorMessage("/chest <claim/unclaim>");
+					help.Add("/chest <claim/unclaim>");
 				if (args.Player.HasPermission("ic.info"))
-					args.Player.SendErrorMessage("/chest info");
+					help.Add("/chest info");
 				if (args.Player.HasPermission("ic.claim"))
-					args.Player.SendErrorMessage("/chest password <password>");
-				args.Player.SendErrorMessage("/chest unlock <password>");
+					help.Add("/chest password <password>");
+				help.Add("/chest unlock <password>");
+				if (args.Player.HasPermission("ic.claim"))
+				{
+					help.Add("/chest allow <player name>");
+					help.Add("/chest remove <player name>");
+					help.Add("/chest allowgroup <group name>");
+					help.Add("/chest removegroup <group name>");
+				}
 				if (args.Player.HasPermission("ic.public"))
-					args.Player.SendErrorMessage("/chest public");
+					help.Add("/chest public");
 				if (args.Player.HasPermission("ic.refill"))
-					args.Player.SendErrorMessage("/chest refill <seconds>");
-				args.Player.SendErrorMessage("/chest cancel");
+					help.Add("/chest refill <seconds>");
+				help.Add("/chest cancel");
+
+				int pageNumber;
+				if (!PaginationTools.TryParsePageNumber(args.Parameters, 1, args.Player, out pageNumber))
+					return;
+
+				PaginationTools.SendPage(args.Player, pageNumber, help, new PaginationTools.Settings() { HeaderFormat = "Chest Subcommands ({0}/{1}):", FooterFormat = "Type /chest help {{0}} for more." });
+
 				return;
 			}
 
@@ -499,6 +597,78 @@ namespace InfChests
 					{
 						playerData[args.Player.Index].password = string.Join(" ", args.Parameters.GetRange(1, args.Parameters.Count - 1));
 						args.Player.SendSuccessMessage("You can now unlock chests that use this password.");
+					}
+					break;
+				case "allow":
+					if (args.Parameters.Count < 2)
+						args.Player.SendErrorMessage("Invalid syntax: /chest allow <player name>");
+					else
+					{
+						string name = string.Join(" ", args.Parameters.GetRange(1, args.Parameters.Count - 1));
+						var user = TShock.Users.GetUserByName(name);
+
+						if (user == null)
+						{
+							args.Player.SendErrorMessage("No player found by the name " + name);
+							return;
+						}
+						playerData[args.Player.Index].userIDToChange = user.ID;
+						playerData[args.Player.Index].action = chestAction.allowUser;
+						args.Player.SendInfoMessage("Open a chest to allow " + name + " to access it.");
+					}
+					break;
+				case "remove":
+					if (args.Parameters.Count < 2)
+						args.Player.SendErrorMessage("Invalid syntax: /chest remove <player name>");
+					else
+					{
+						string name = string.Join(" ", args.Parameters.GetRange(1, args.Parameters.Count - 1));
+						var user = TShock.Users.GetUserByName(name);
+
+						if (user == null)
+						{
+							args.Player.SendErrorMessage("No player found by the name " + name);
+							return;
+						}
+						playerData[args.Player.Index].userIDToChange = user.ID;
+						playerData[args.Player.Index].action = chestAction.removeUser;
+						args.Player.SendInfoMessage("Open a chest to remove chest access from  " + name + ".");
+					}
+					break;
+				case "allowgroup":
+				case "allowg":
+					if (args.Parameters.Count != 2)
+						args.Player.SendErrorMessage("Invalid syntax: /chest allowgroup <group name>");
+					else
+					{
+						var group = TShock.Groups.GetGroupByName(args.Parameters[1]);
+
+						if (group == null)
+						{
+							args.Player.SendErrorMessage("No group found by the name " + args.Parameters[1]);
+							return;
+						}
+						playerData[args.Player.Index].groupToChange = group.Name;
+						playerData[args.Player.Index].action = chestAction.allowGroup;
+						args.Player.SendInfoMessage("Open a chest to allow users from the group " + group.Name + " to access it.");
+					}
+					break;
+				case "removegroup":
+				case "removeg":
+					if (args.Parameters.Count != 2)
+						args.Player.SendErrorMessage("Invalid syntax: /chest removegroup <group name>");
+					else
+					{
+						var group = TShock.Groups.GetGroupByName(args.Parameters[1]);
+
+						if (group == null)
+						{
+							args.Player.SendErrorMessage("No group found by the name " + args.Parameters[1]);
+							return;
+						}
+						playerData[args.Player.Index].groupToChange = group.Name;
+						playerData[args.Player.Index].action = chestAction.removeGroup;
+						args.Player.SendInfoMessage("Open a chest to remove chest access from users in the group " + group.Name + ".");
 					}
 					break;
 				case "public":
@@ -626,6 +796,10 @@ namespace InfChests
 		unProtect,
 		togglePublic,
 		setRefill,
-		setPassword
+		setPassword,
+		allowUser,
+		removeUser,
+		allowGroup,
+		removeGroup
 	}
 }

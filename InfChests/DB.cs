@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.IO;
+using System.Linq;
 using Terraria;
 using TShockAPI;
 using TShockAPI.DB;
@@ -49,6 +50,8 @@ namespace InfChests
 				new SqlColumn("Items", MySqlDbType.Text) { Length = 500 },
 				new SqlColumn("Password", MySqlDbType.Text) { Length = 100 },
 				new SqlColumn("Public", MySqlDbType.Int32) { Length = 1 },
+				new SqlColumn("Users", MySqlDbType.Text) { Length = 500 },
+				new SqlColumn("Groups", MySqlDbType.Text) { Length = 500 },
 				new SqlColumn("Refill", MySqlDbType.Int32) { Length = 5 },
 				new SqlColumn("WorldID", MySqlDbType.Int32) { Length = 15 }));
 
@@ -82,7 +85,7 @@ namespace InfChests
 
 		public static bool addChest(InfChest _chest)
 		{
-			string query = $"INSERT INTO InfChests (UserID, X, Y, Items, Public, Refill, WorldID) VALUES ({_chest.userid}, {_chest.x}, {_chest.y}, '{_chest.ToString()}', {0}, {0}, {Main.worldID})";
+			string query = $"INSERT INTO InfChests (UserID, X, Y, Items, Public, Refill, Users, Groups, WorldID) VALUES ({_chest.userid}, {_chest.x}, {_chest.y}, '{_chest.ToString()}', {0}, {0}, '', '', {Main.worldID})";
 			int result = db.Query(query);
 			if (result == 1)
 				return true;
@@ -107,6 +110,9 @@ namespace InfChests
 			{
 				if (reader.Read())
 				{
+					string _users = reader.Get<string>("Users");
+					string _groups = reader.Get<string>("Groups");
+					
 					InfChest chest = new InfChest()
 					{
 						id = reader.Get<int>("ID"),
@@ -115,7 +121,9 @@ namespace InfChests
 						y = tiley,
 						password = reader.Get<string>("Password"),
 						isPublic = reader.Get<int>("Public") == 1 ? true : false,
-						refillTime = reader.Get<int>("Refill")
+						refillTime = reader.Get<int>("Refill"),
+						users = string.IsNullOrEmpty(_users) ? new List<int>() : _users.Split(',').ToList().ConvertAll<int>(p => int.Parse(p)),
+						groups = string.IsNullOrEmpty(_groups) ? new List<string>() : _groups.Split(',').ToList()
 					};
 					chest.setItemsFromString(reader.Get<string>("Items"));
 
@@ -162,6 +170,26 @@ namespace InfChests
 		{
 			int num = isPublic ? 1 : 0;
 			string query = $"UPDATE InfChests SET Public = {num} WHERE ID = {id} AND WorldID = {Main.worldID}";
+			int result = db.Query(query);
+			if (result != 1)
+				return false;
+			else
+				return true;
+		}
+
+		public static bool setGroups(int id, List<string> groups)
+		{
+			string query = $"UPDATE InfChests SET Groups = '{string.Join(",", groups)}' WHERE ID = {id} AND WorldID = {Main.worldID}";
+			int result = db.Query(query);
+			if (result != 1)
+				return false;
+			else
+				return true;
+		}
+
+		public static bool setUsers(int id, List<int> users)
+		{
+			string query = $"UPDATE InfChests SET Users = '{string.Join(",", users.Select(p => p.ToString()))}' WHERE ID = {id} AND WorldID = {Main.worldID}";
 			int result = db.Query(query);
 			if (result != 1)
 				return false;

@@ -15,6 +15,8 @@ namespace InfChests
 		public string password;
 		public bool isPublic;
 		public int refillTime;
+		public List<string> groups;
+		public List<int> users;
 
 		public override string ToString()
 		{

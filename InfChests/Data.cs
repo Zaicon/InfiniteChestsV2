@@ -18,6 +18,8 @@ namespace InfChests
 		public List<int> slotQueue;
 		public Point location;
 		private int index;
+		public int userIDToChange;
+		public string groupToChange;
 
 		public Data(int index)
 		{
@@ -30,6 +32,8 @@ namespace InfChests
 			quickStackTimer.Elapsed += onElapsed;
 			slotQueue = new List<int>();
 			this.index = index;
+			userIDToChange = -1;
+			groupToChange = "";
 		}
 
 		public void onElapsed(object sender, ElapsedEventArgs args)

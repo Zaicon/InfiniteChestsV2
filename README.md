@@ -14,7 +14,7 @@ This is a completely rewritten version of MarioE's original InfiniteChests plugi
 - [x] "Quick Stack To Nearby Chests" supported.
 - [x] Converting database chests back to map chests.
 - [x] Pruning empty chests.
-- [ ] Adding users and/or groups to chests.
+- [x] Adding users and/or groups to chests.
 - [ ] Saving/loading chests across maps.
 
 ### Things this plugin will not do (as of now):
@@ -27,6 +27,10 @@ This is a completely rewritten version of MarioE's original InfiniteChests plugi
 /chest info - Displays X/Y coordinates and account owner.
 /chest password <password> - Password-protects a chest.
 /chest unlock <password> - Allows opening of any chest using that password.
+/chest allow <player name> - Gives user access to chest.
+/chest remove <player name> - Removes chest access from user.
+/chest allowgroup <group name> - Gives players with that group access to chest.
+/chest removegroup <group name> - Removes group access to chest.
 /chest public - Toggles the 'public' setting of a chest, allowing others to use but not destroy the chest.
 /chest refill <seconds> - Sets the interval in which chests refill items.
 /chest cancel - Cancels any of the above actions.

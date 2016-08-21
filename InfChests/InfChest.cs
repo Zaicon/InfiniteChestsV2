@@ -12,7 +12,6 @@ namespace InfChests
 		public int y;
 		public int userid;
 		public Item[] items;
-		public string password;
 		public bool isPublic;
 		public int refillTime;
 		public List<string> groups;

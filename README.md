@@ -16,6 +16,7 @@ This is a completely rewritten version of MarioE's original InfiniteChests plugi
 - [x] Pruning empty chests.
 - [x] Adding users and/or groups to chests.
 - [ ] Saving/loading chests across maps.
+- [ ] Searching for items in chests.
 
 ### Things this plugin will not do (as of now):
 * Chest name support. Chest names are stored in tile data, which would be very costly to implement.

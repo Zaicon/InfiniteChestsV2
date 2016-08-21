@@ -12,11 +12,11 @@ using System.Linq;
 
 namespace InfChests
 {
-	[ApiVersion(1,23)]
+	[ApiVersion(1, 23)]
 	public class InfChests : TerrariaPlugin
 	{
 		#region Plugin Info
-		public override string Name { get { return "InfiniteChests"; } }
+		public override string Name { get { return "InfiniteChests (Beta)"; } }
 		public override string Author { get { return "Zaicon"; } }
 		public override string Description { get { return "A server-sided chest manager."; } }
 		public override Version Version { get { return Assembly.GetExecutingAssembly().GetName().Version; } }
@@ -89,7 +89,7 @@ namespace InfChests
 						if (lockChests)
 							TShock.Players[args.Msg.whoAmI].SendWarningMessage("Chest conversion in progress. Please wait.");
 						else
-							await Task<bool>.Factory.StartNew( () => getChestContents(args.Msg.whoAmI, tilex, tiley));
+							await Task<bool>.Factory.StartNew(() => getChestContents(args.Msg.whoAmI, tilex, tiley));
 						args.Handled = true;
 						break;
 					case PacketTypes.ChestItem: //22 ChestItem
@@ -129,7 +129,7 @@ namespace InfChests
 							tiley--;
 						if (Main.tile[tilex, tiley].frameX % 36 != 0)
 							tilex--;
-						
+
 						if (chestid == -1)
 						{
 							playerData[args.Msg.whoAmI].dbid = -1;
@@ -189,7 +189,7 @@ namespace InfChests
 								{
 									player.SendErrorMessage("This chest is protected.");
 								}
-								else if(chest2.items.Any(p => p.type != 0))
+								else if (chest2.items.Any(p => p.type != 0))
 								{
 									//Do nothing - ingore tilekill attempt when items are in chest
 								}
@@ -230,7 +230,7 @@ namespace InfChests
 			playerData[args.Who] = new Data(args.Who);
 		}
 		#endregion
-		
+
 		private bool getChestContents(int index, short tilex, short tiley)
 		{
 			InfChest chest = DB.getChest(tilex, (short)(tiley));
@@ -249,8 +249,8 @@ namespace InfChests
 			{
 				player.SendErrorMessage("This chest is in use.");
 				playerData[index].action = chestAction.none;
-                return true;
-            }
+				return true;
+			}
 
 			switch (playerData[index].action)
 			{
@@ -275,24 +275,6 @@ namespace InfChests
 					else
 						player.SendInfoMessage("Users Allowed: (None)");
 					break;
-				case chestAction.setPassword:
-					if (chest.userid != player.User.ID && !player.HasPermission("ic.edit"))
-					{
-						player.SendErrorMessage("This chest is not yours.");
-					}
-					else
-					{
-						if (DB.setPassword(chest.id, playerData[index].password))
-						{
-							player.SendSuccessMessage("Set chest password to `" + playerData[index].password + "`.");
-						}
-						else
-						{
-							player.SendErrorMessage("An error occured.");
-							TShock.Log.Error("Error setting chest password.");
-						}
-					}
-					break;
 				case chestAction.protect:
 					if (chest.userid == player.User.ID)
 						player.SendErrorMessage("This chest is already claimed by you!");
@@ -316,7 +298,7 @@ namespace InfChests
 						player.SendErrorMessage("This chest is not claimed!");
 					else
 					{
-						if (DB.setUserID(chest.id, -1) && DB.setPassword(chest.id, ""))
+						if (DB.setUserID(chest.id, -1) && DB.setRefill(chest.id, 0))
 							player.SendSuccessMessage("This chest is no longer claimed.");
 						else
 						{
@@ -438,13 +420,8 @@ namespace InfChests
 				case chestAction.none:
 					if (chest.userid != -1 && !player.IsLoggedIn && !chest.isPublic)
 						player.SendErrorMessage("You must be logged in to use this chest.");
-					else if (!chest.isPublic && chest.userid != -1 && !player.HasPermission("ic.edit") && chest.userid != player.User.ID && chest.password != playerData[index].password)
-					{
-						if (chest.password != string.Empty)
-							player.SendErrorMessage("This chest is password protected.");
-						else
-							player.SendErrorMessage("This chest is protected.");
-					}
+					else if (!chest.isPublic && chest.userid != -1 && !player.HasPermission("ic.edit") && chest.userid != player.User.ID)
+						player.SendErrorMessage("This chest is protected.");
 					else
 					{
 						int chestindex = Chest.FindEmptyChest(tilex, tiley);
@@ -495,7 +472,7 @@ namespace InfChests
 					break;
 			}
 			playerData[index].action = chestAction.none;
-			
+
 			return true;
 		}
 
@@ -517,9 +494,6 @@ namespace InfChests
 					help.Add("/chest <claim/unclaim>");
 				if (args.Player.HasPermission("ic.info"))
 					help.Add("/chest info");
-				if (args.Player.HasPermission("ic.claim"))
-					help.Add("/chest password <password>");
-				help.Add("/chest unlock <password>");
 				if (args.Player.HasPermission("ic.claim"))
 				{
 					help.Add("/chest allow <player name>");
@@ -570,34 +544,6 @@ namespace InfChests
 					}
 					args.Player.SendInfoMessage("Open a chest to get information about it.");
 					playerData[args.Player.Index].action = chestAction.info;
-					break;
-				case "password":
-					if (!args.Player.HasPermission("ic.claim"))
-					{
-						args.Player.SendErrorMessage("You do not have permission to password-protect chests.");
-						break;
-					}
-					if (args.Parameters.Count == 1)
-					{
-						args.Player.SendInfoMessage("Open a chest to remove its password.");
-						playerData[args.Player.Index].password = "";
-					}
-					else
-					{
-						string psw = string.Join(" ", args.Parameters.GetRange(1, args.Parameters.Count - 1));
-						args.Player.SendInfoMessage("Open a chest to set its password.");
-						playerData[args.Player.Index].password = psw;
-					}
-					playerData[args.Player.Index].action = chestAction.setPassword;
-					break;
-				case "unlock":
-					if (args.Parameters.Count == 1)
-						args.Player.SendErrorMessage("Invalid syntax: /chest unlock <password>");
-					else
-					{
-						playerData[args.Player.Index].password = string.Join(" ", args.Parameters.GetRange(1, args.Parameters.Count - 1));
-						args.Player.SendSuccessMessage("You can now unlock chests that use this password.");
-					}
 					break;
 				case "allow":
 					if (args.Parameters.Count < 2)
@@ -774,17 +720,6 @@ namespace InfChests
 				WorldFile.saveWorld();
 			}
 			return converted;
-		}
-
-		private void ForceItems(int index, int playerSlot)
-		{
-			TSPlayer player = TShock.Players[index];
-			Item playerItem = player.TPlayer.inventory[playerSlot];
-
-			//Debug
-			player.TPlayer.inventory[playerSlot] = new Item();
-			NetMessage.SendData((int)PacketTypes.PlayerSlot, -1, -1, "", index, playerSlot);
-			TSPlayer.All.SendInfoMessage("Deleted slot " + playerSlot);
 		}
 	}
 

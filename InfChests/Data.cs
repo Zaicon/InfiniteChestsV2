@@ -11,7 +11,6 @@ namespace InfChests
 	{
 		public int dbid;
 		public int mainid;
-		public string password;
 		public chestAction action;
 		public int refillTime;
 		public Timer quickStackTimer;
@@ -25,7 +24,6 @@ namespace InfChests
 		{
 			dbid = -1;
 			mainid = -1;
-			password = string.Empty;
 			action = chestAction.none;
 			refillTime = 0;
 			quickStackTimer = new Timer(1000); //wait one second for all quickstack packets to arrive
@@ -63,7 +61,7 @@ namespace InfChests
 					bool emptySlots = false;
 					bool stacking = false;
 					//if player has access to chest
-					if ((nearbyChests[i].userid == player.User.ID || nearbyChests[i].userid == -1 || nearbyChests[i].isPublic || nearbyChests[i].password == password || player.HasPermission("ic.edit")) && !InfChests.playerData.Values.Any(p => p.dbid == nearbyChests[i].id) && nearbyChests[i].refillTime == 0)
+					if ((nearbyChests[i].userid == player.User.ID || nearbyChests[i].userid == -1 || nearbyChests[i].isPublic || player.HasPermission("ic.edit")) && !InfChests.playerData.Values.Any(p => p.dbid == nearbyChests[i].id) && nearbyChests[i].refillTime == 0)
 					{
 						//foreach slot in chest
 						for (int j = 0; j < nearbyChests[i].items.Length; j++)

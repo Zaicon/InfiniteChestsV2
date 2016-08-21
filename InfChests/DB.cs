@@ -6,6 +6,7 @@ using System.Data;
 using System.IO;
 using System.Linq;
 using Terraria;
+using TerrariaApi.Server;
 using TShockAPI;
 using TShockAPI.DB;
 
@@ -48,7 +49,6 @@ namespace InfChests
 				new SqlColumn("X", MySqlDbType.Int32) { Length = 6 },
 				new SqlColumn("Y", MySqlDbType.Int32) { Length = 6 },
 				new SqlColumn("Items", MySqlDbType.Text) { Length = 500 },
-				new SqlColumn("Password", MySqlDbType.Text) { Length = 100 },
 				new SqlColumn("Public", MySqlDbType.Int32) { Length = 1 },
 				new SqlColumn("Users", MySqlDbType.Text) { Length = 500 },
 				new SqlColumn("Groups", MySqlDbType.Text) { Length = 500 },
@@ -119,7 +119,6 @@ namespace InfChests
 						userid = reader.Get<int>("UserID"),
 						x = tilex,
 						y = tiley,
-						password = reader.Get<string>("Password"),
 						isPublic = reader.Get<int>("Public") == 1 ? true : false,
 						refillTime = reader.Get<int>("Refill"),
 						users = string.IsNullOrEmpty(_users) ? new List<int>() : _users.Split(',').ToList().ConvertAll<int>(p => int.Parse(p)),
@@ -132,16 +131,6 @@ namespace InfChests
 			}
 
 			return null;
-		}
-
-		public static bool setPassword(int id, string password)
-		{
-			string query = $"UPDATE InfChests SET Password = '{password}' WHERE ID = {id} AND WorldID = {Main.worldID}";
-			int result = db.Query(query);
-			if (result != 1)
-				return false;
-			else
-				return true;
 		}
 
 		public static bool setUserID(int id, int userid)
@@ -282,7 +271,6 @@ namespace InfChests
 				{
 					chests.Add(new InfChest() {
 						id = reader.Get<int>("ID"),
-						password = reader.Get<string>("Password"),
 						refillTime = reader.Get<int>("Refill"),
 						userid = reader.Get<int>("UserID")
 					});

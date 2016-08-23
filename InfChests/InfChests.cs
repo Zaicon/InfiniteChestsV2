@@ -436,6 +436,36 @@ namespace InfChests
 						}
 					}
 					break;
+				case chestAction.setName:
+					if (chest.userid != player.User.ID && !player.HasPermission("ic.edit"))
+						player.SendErrorMessage("This chest is not yours!");
+					else if (chest.userid == -1)
+						player.SendErrorMessage("This chest is not claimed!");
+					else
+					{
+						if (!DB.setName(chest.id, playerData[index].chestName))
+						{
+							player.SendErrorMessage("An error occured.");
+							TShock.Log.Error("Error setting chest name.");
+						}
+						else
+							player.SendSuccessMessage("Saved chest as '" + playerData[index].chestName + "'.");
+					}
+					break;
+				case chestAction.loadName:
+					if (chest.userid != player.User.ID && !player.HasPermission("ic.edit") && chest.userid != -1)
+						player.SendErrorMessage("This chest is not yours!");
+					else
+					{
+						if (DB.setAll(chest.id, DB.getChest(playerData[index].chestName)))
+							player.SendSuccessMessage("Chest loaded from chest '" + playerData[index].chestName + "'.");
+						else
+						{
+							player.SendErrorMessage("An error occured.");
+							TShock.Log.Error("Error loading chest from name.");
+						}
+					}
+					break;
 				case chestAction.none:
 					if (chest.userid != -1 && !player.IsLoggedIn && !chest.isPublic)
 						player.SendErrorMessage("You must be logged in to use this chest.");
@@ -527,6 +557,11 @@ namespace InfChests
 					help.Add("/chest public");
 				if (args.Player.HasPermission("ic.refill"))
 					help.Add("/chest refill <seconds>");
+				if (args.Player.HasPermission("ic.save"))
+				{
+					help.Add("/chest save <chest name>");
+					help.Add("/chest load <chest name>");
+				}
 				help.Add("/chest cancel");
 
 				int pageNumber;
@@ -705,6 +740,49 @@ namespace InfChests
 					else
 						args.Player.SendInfoMessage("Open a chest to remove auto-refill.");
 					break;
+				case "save":
+					if (!args.Player.HasPermission("ic.save"))
+					{
+						args.Player.SendErrorMessage("You do not have permission to save chests.");
+						break;
+					}
+					if (args.Parameters.Count < 2)
+					{
+						args.Player.SendErrorMessage("Invalid syntax: /chest save <chest name>");
+						break;
+					}
+					name = string.Join(" ", args.Parameters.GetRange(1, args.Parameters.Count - 1));
+					if (name.Length > 30)
+					{
+						args.Player.SendErrorMessage("Chest name too long!");
+						break;
+					}
+					playerData[args.Player.Index].chestName = name;
+					args.Player.SendInfoMessage("Open a chest to save it as '" + name + "'.");
+					playerData[args.Player.Index].action = chestAction.setName;
+					break;
+				case "load":
+					if (!args.Player.HasPermission("ic.save"))
+					{
+						args.Player.SendErrorMessage("You do not have permission to save chests.");
+						break;
+					}
+					if (args.Parameters.Count < 2)
+					{
+						args.Player.SendErrorMessage("Invalid syntax: /chest load <chest name>");
+						break;
+					}
+					name = string.Join(" ", args.Parameters.GetRange(1, args.Parameters.Count - 1));
+					if (!DB.chestNameExists(name))
+					{
+						args.Player.SendErrorMessage("No chests found by the name '" + name + "'.");
+						break;
+					}
+					playerData[args.Player.Index].chestName = name;
+					args.Player.SendInfoMessage("Open a chest to load chest '" + name + "'.");
+					args.Player.SendWarningMessage("Warning! The chest's current contents will be gone forever, even if it was previously saved!");
+					playerData[args.Player.Index].action = chestAction.loadName;
+					break;
 				case "cancel":
 					playerData[args.Player.Index].action = chestAction.none;
 					args.Player.SendInfoMessage("Canceled chest action.");
@@ -790,6 +868,8 @@ namespace InfChests
 		allowUser,
 		removeUser,
 		allowGroup,
-		removeGroup
+		removeGroup,
+		setName,
+		loadName
 	}
 }

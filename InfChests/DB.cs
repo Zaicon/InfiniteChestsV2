@@ -48,6 +48,7 @@ namespace InfChests
 				new SqlColumn("UserID", MySqlDbType.Int32) { Length = 6 },
 				new SqlColumn("X", MySqlDbType.Int32) { Length = 6 },
 				new SqlColumn("Y", MySqlDbType.Int32) { Length = 6 },
+				new SqlColumn("Name", MySqlDbType.Text) { Length = 30 },
 				new SqlColumn("Public", MySqlDbType.Int32) { Length = 1 },
 				new SqlColumn("Users", MySqlDbType.Text) { Length = 500 },
 				new SqlColumn("Groups", MySqlDbType.Text) { Length = 500 },
@@ -83,7 +84,7 @@ namespace InfChests
 
 		public static bool addChest(InfChest _chest)
 		{
-			string query = $"INSERT INTO InfChests (UserID, X, Y, Public, Refill, Users, Groups, WorldID) VALUES ({_chest.userid}, {_chest.x}, {_chest.y}, {0}, {0}, '', '', {Main.worldID})";
+			string query = $"INSERT INTO InfChests (UserID, X, Y, Name, Public, Refill, Users, Groups, WorldID) VALUES ({_chest.userid}, {_chest.x}, {_chest.y}, '', {0}, {0}, '', '', {Main.worldID})";
 			int result = db.Query(query);
 			query = $"SELECT MAX(ID) AS lastchestid FROM InfChests";
 
@@ -172,6 +173,50 @@ namespace InfChests
 			return chest;
 		}
 
+		public static InfChest getChest(string name)
+		{
+			string query = $"SELECT * FROM InfChests WHERE Name = '{name}'";
+			InfChest chest = new InfChest();
+			using (var reader = db.QueryReader(query))
+			{
+				if (reader.Read())
+				{
+					string _users = reader.Get<string>("Users");
+					string _groups = reader.Get<string>("Groups");
+
+					chest.id = reader.Get<int>("ID");
+					chest.userid = reader.Get<int>("UserID");
+					chest.x = reader.Get<int>("X");
+					chest.y = reader.Get<int>("Y");
+					chest.isPublic = reader.Get<int>("Public") == 1 ? true : false;
+					chest.refillTime = reader.Get<int>("Refill");
+					chest.users = string.IsNullOrEmpty(_users) ? new List<int>() : _users.Split(',').ToList().ConvertAll<int>(p => int.Parse(p));
+					chest.groups = string.IsNullOrEmpty(_groups) ? new List<string>() : _groups.Split(',').ToList();
+					chest.items = new Item[40];
+				}
+				else
+					return null;
+			}
+			query = $"SELECT * FROM ChestItems WHERE ChestID = {chest.id}";
+			using (var reader = db.QueryReader(query))
+			{
+				while (reader.Read())
+				{
+					int slot = reader.Get<int>("Slot");
+					int type = reader.Get<int>("Type");
+					int stack = reader.Get<int>("Stack");
+					int prefix = reader.Get<int>("Prefix");
+					Item item = new Item();
+					item.SetDefaults(type);
+					item.stack = stack;
+					item.prefix = (byte)prefix;
+					chest.items[slot] = item;
+				}
+			}
+
+			return chest;
+		}
+
 		public static bool setUserID(int id, int userid)
 		{
 			string query = $"UPDATE InfChests SET UserID = {userid} WHERE ID = {id} AND WorldID = {Main.worldID}";
@@ -180,6 +225,19 @@ namespace InfChests
 				return false;
 			else
 				return true;
+		}
+		
+		public static bool setName(int id, string name)
+		{
+			if (chestNameExists(name))
+				return false;
+
+			string query = $"UPDATE InfChests SET Name = '{name}' WHERE ID = {id}";
+			int result = db.Query(query);
+			if (result == 1)
+				return true;
+			else
+				return false;
 		}
 
 		public static bool setItems(int id, Item[] items)
@@ -236,6 +294,25 @@ namespace InfChests
 				return false;
 			else
 				return true;
+		}
+
+		public static bool setAll(int id, InfChest chest)
+		{
+			int ispublic = chest.isPublic ? 1 : 0;
+			int result = 0;
+
+			string query = $"UPDATE InfChests SET UserID = {chest.userid}, Public = {ispublic}, Users = '{string.Join(",", chest.users.Select(p => p.ToString()))}', Groups = '{string.Join(",", chest.groups)}', Refill = {chest.refillTime} WHERE ID = {id}";
+			result += db.Query(query);
+			for (int i = 0; i < chest.items.Length; i++)
+			{
+				query = $"UPDATE ChestItems SET Type = {chest.items[i].type}, Stack = {chest.items[i].stack}, Prefix = {chest.items[i].prefix} WHERE ChestID = {id} AND Slot = {i}";
+				result += db.Query(query);
+			}
+
+			if (result == 41)
+				return true;
+			else
+				return false;
 		}
 
 		public static int getChestCount()
@@ -394,6 +471,24 @@ namespace InfChests
 					TShock.Log.ConsoleError("Error getting itemcount from DB.");
 					return -1;
 				}
+			}
+		}
+
+		public static bool chestNameExists(string name)
+		{
+			string query = $"SELECT COUNT(*) AS chestcount FROM InfChests WHERE Name = '{name}'";
+			using (var reader = db.QueryReader(query))
+			{
+				if (reader.Read())
+				{
+					int count = reader.Get<int>("chestcount");
+					if (count != 0)
+						return true;
+					else
+						return false;
+				}
+				else
+					return false;
 			}
 		}
 	}

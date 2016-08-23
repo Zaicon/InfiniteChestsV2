@@ -7,7 +7,6 @@ This is a completely rewritten version of MarioE's original InfiniteChests plugi
 - [x] || via command.
 - [x] Users can interact (add, modify, or destory) database chests.
 - [x] Users can protect their chests via user account.
-- [x] Users can protect their chests via password.
 - [x] Users can set their chests to "public" (other players can freely modify).
 - [x] Permissions for individual functions.
 - [x] Chests refill items (immediately or with a timer).
@@ -16,7 +15,7 @@ This is a completely rewritten version of MarioE's original InfiniteChests plugi
 - [x] Pruning empty chests.
 - [x] Adding users and/or groups to chests.
 - [ ] Saving/loading chests across maps.
-- [ ] Searching for items in chests.
+- [x] Searching for items in chests.
 
 ### Things this plugin will not do (as of now):
 * Chest name support. Chest names are stored in tile data, which would be very costly to implement.
@@ -26,7 +25,7 @@ This is a completely rewritten version of MarioE's original InfiniteChests plugi
 /chest claim - Protects a chest via user account.
 /chest unclaim - Unprotects a chest.
 /chest info - Displays X/Y coordinates and account owner.
-/chest password <password> - Password-protects a chest.
+/chest search <item name> - Searches chests for a specific item.
 /chest unlock <password> - Allows opening of any chest using that password.
 /chest allow <player name> - Gives user access to chest.
 /chest remove <player name> - Removes chest access from user.
@@ -42,8 +41,9 @@ This is a completely rewritten version of MarioE's original InfiniteChests plugi
 ###Permisisons
 ```
 ic.use - Enables use of /chest
-ic.claim - Enables use of /chest claim, unclaim, password
+ic.claim - Enables use of /chest claim, unclaim
 ic.info - Enables use of /chest info
+ic.search - Enables use of /chest search
 ic.public - Enables use of /chest public
 ic.protect - Players with this permission will have their chests automatically protected via user account.
 ic.refill - Enables use of /chest refill

@@ -19,6 +19,7 @@ namespace InfChests
 		private int index;
 		public int userIDToChange;
 		public string groupToChange;
+		public bool lockChests;
 
 		public Data(int index)
 		{
@@ -32,6 +33,7 @@ namespace InfChests
 			this.index = index;
 			userIDToChange = -1;
 			groupToChange = "";
+			lockChests = false;
 		}
 
 		public void onElapsed(object sender, ElapsedEventArgs args)

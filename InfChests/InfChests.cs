@@ -88,11 +88,17 @@ namespace InfChests
 						short tiley = reader.ReadInt16();
 						if (lockChests)
 							TShock.Players[args.Msg.whoAmI].SendWarningMessage("Chest conversion in progress. Please wait.");
-						else
+						else if (!playerData[args.Msg.whoAmI].lockChests)
 							await Task<bool>.Factory.StartNew(() => getChestContents(args.Msg.whoAmI, tilex, tiley));
 						args.Handled = true;
 						break;
 					case PacketTypes.ChestItem: //22 ChestItem
+						if (lockChests)
+						{
+							TShock.Players[args.Msg.whoAmI].SendWarningMessage("Chest conversion in progress. Please wait.");
+							args.Handled = true;
+							return;
+						}
 						short chestid = reader.ReadInt16();
 						byte itemslot = reader.ReadByte();
 						short stack = reader.ReadInt16();
@@ -145,6 +151,12 @@ namespace InfChests
 						}
 						break;
 					case PacketTypes.TileKill:
+						if (lockChests)
+						{
+							TShock.Players[args.Msg.whoAmI].SendWarningMessage("Chest conversion in progress. Please wait.");
+							args.Handled = true;
+							return;
+						}
 						byte action = reader.ReadByte(); // 0 placechest, 1 killchest, 2 placedresser, 3 killdresser
 						tilex = reader.ReadInt16();
 						tiley = reader.ReadInt16();
@@ -154,6 +166,7 @@ namespace InfChests
 						{
 							if (TShock.Regions.CanBuild(tilex, tiley, TShock.Players[args.Msg.whoAmI]))
 							{
+								playerData[args.Msg.whoAmI].lockChests = true;
 								chestnum = WorldGen.PlaceChest(tilex, tiley, type: action == 0 ? (ushort)21 : (ushort)88, style: style);
 								if (chestnum == -1)
 									break;
@@ -167,6 +180,7 @@ namespace InfChests
 									y = Main.chest[chestnum].y
 								});
 								Main.chest[chestnum] = null;
+								playerData[args.Msg.whoAmI].lockChests = false;
 							}
 							args.Handled = true;
 						}
@@ -208,6 +222,11 @@ namespace InfChests
 						args.Handled = true;
 						break;
 					case PacketTypes.ForceItemIntoNearestChest:
+						if (lockChests)
+						{
+							args.Handled = true;
+							return;
+						}
 						byte invslot = reader.ReadByte();
 						//At the moment, we only allow quickstacking for chest owners & users with edit perm & users with correct password & non-refilling chests
 						if (TShock.Players[args.Msg.whoAmI].IsLoggedIn)
@@ -432,6 +451,7 @@ namespace InfChests
 
 						if (chest.refillTime > 0)
 						{
+							TShock.Players[index].SendWarningMessage("This chest refills every " + chest.refillTime + " seconds!");
 							if (refillInfo.Exists(p => p.Item1 == chest.id))
 							{
 								int cindex = refillInfo.FindIndex(p => p.Item1 == chest.id);
@@ -494,6 +514,8 @@ namespace InfChests
 					help.Add("/chest <claim/unclaim>");
 				if (args.Player.HasPermission("ic.info"))
 					help.Add("/chest info");
+				if (args.Player.HasPermission("ic.search"))
+					help.Add("/chest search <item name>");
 				if (args.Player.HasPermission("ic.claim"))
 				{
 					help.Add("/chest allow <player name>");
@@ -545,12 +567,45 @@ namespace InfChests
 					args.Player.SendInfoMessage("Open a chest to get information about it.");
 					playerData[args.Player.Index].action = chestAction.info;
 					break;
+				case "search":
+					if (!args.Player.HasPermission("ic.search"))
+					{
+						args.Player.SendErrorMessage("You do not have permission to search for chest items.");
+						break;
+					}
+					if (args.Parameters.Count < 2)
+					{
+						args.Player.SendErrorMessage("Invalid syntax: /chest search <item name>");
+						break;
+					}
+					string name = string.Join(" ", args.Parameters.GetRange(1, args.Parameters.Count - 1));
+					if (Main.itemName.ToList().Exists(p => p.ToLower() == name.ToLower()))
+					{
+						int itemid = Main.itemName.ToList().FindIndex(p => p.ToLower() == name.ToLower());
+						int count = DB.searchChests(itemid);
+						args.Player.SendSuccessMessage($"There are {count} chest(s) with {Main.itemName[itemid]}(s).");
+					}
+					else if (Main.itemName.ToList().Count(p => p.ToLower().Contains(name.ToLower())) == 1)
+					{
+						int itemid = Main.itemName.ToList().FindIndex(p => p.ToLower().Contains(name.ToLower()));
+						int count = DB.searchChests(itemid);
+						args.Player.SendSuccessMessage($"There are {count} chest(s) with {Main.itemName[itemid]}(s).");
+					}
+					else if (Main.itemName.ToList().Exists(p => p.ToLower().Contains(name.ToLower())))
+					{
+						args.Player.SendErrorMessage($"Multiple matches found for item '{name}'");
+					}
+					else
+					{
+						args.Player.SendErrorMessage($"No matches found for item '{name}'.");
+					}
+					break;
 				case "allow":
 					if (args.Parameters.Count < 2)
 						args.Player.SendErrorMessage("Invalid syntax: /chest allow <player name>");
 					else
 					{
-						string name = string.Join(" ", args.Parameters.GetRange(1, args.Parameters.Count - 1));
+						name = string.Join(" ", args.Parameters.GetRange(1, args.Parameters.Count - 1));
 						var user = TShock.Users.GetUserByName(name);
 
 						if (user == null)
@@ -568,7 +623,7 @@ namespace InfChests
 						args.Player.SendErrorMessage("Invalid syntax: /chest remove <player name>");
 					else
 					{
-						string name = string.Join(" ", args.Parameters.GetRange(1, args.Parameters.Count - 1));
+						name = string.Join(" ", args.Parameters.GetRange(1, args.Parameters.Count - 1));
 						var user = TShock.Users.GetUserByName(name);
 
 						if (user == null)

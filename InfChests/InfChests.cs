@@ -475,7 +475,11 @@ namespace InfChests
 					{
 						int chestindex = Chest.FindEmptyChest(tilex, tiley);
 						if (chestindex == -1)
-							throw new Exception("No empty chests!");
+						{
+							player.SendErrorMessage("An error occured.");
+							TShock.Log.ConsoleError("Error: No empty chests available.");
+							break;
+						}
 
 						Item[] writeItems;
 

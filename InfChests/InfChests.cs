@@ -136,7 +136,7 @@ namespace InfChests
 						if (Main.tile[tilex, tiley].frameX % 36 != 0)
 							tilex--;
 
-						if (chestid == -1)
+						if (chestid == -1 && playerData[args.Msg.whoAmI].mainid != -1)
 						{
 							playerData[args.Msg.whoAmI].dbid = -1;
 							Main.chest[playerData[args.Msg.whoAmI].mainid] = null;
@@ -144,10 +144,15 @@ namespace InfChests
 							NetMessage.SendData((int)PacketTypes.SyncPlayerChestIndex, -1, args.Msg.whoAmI, "", args.Msg.whoAmI, -1);
 							args.Handled = true;
 						}
-						else
+						else if (chestid == -1 || chestid == -3 || chestid == -2) // -2 is open piggy bank, -3 is open safe, -1 is close piggy bank/safe
+						{
+							//do nothing
+						}
+						else 
 						{
 							args.Handled = true;
 							TShock.Log.ConsoleError("Unhandled ChestOpen packet.");
+							TShock.Log.Info($"ChestID: {chestid} | X: {tilex} | Y: {tiley}");
 						}
 						break;
 					case PacketTypes.TileKill:
@@ -170,7 +175,8 @@ namespace InfChests
 								chestnum = WorldGen.PlaceChest(tilex, tiley, type: action == 0 ? (ushort)21 : (ushort)88, style: style);
 								if (chestnum == -1)
 									break;
-								NetMessage.SendTileSquare(args.Msg.whoAmI, Main.chest[chestnum].x, Main.chest[chestnum].y, 3);
+								foreach (TSPlayer plr in TShock.Players.Where(p => p != null && p.Active))
+									plr.SendTileSquare(Main.chest[chestnum].x, Main.chest[chestnum].y, 3);
 
 								DB.addChest(new InfChest()
 								{
@@ -212,7 +218,8 @@ namespace InfChests
 									WorldGen.KillTile(tilex, tiley);
 									DB.removeChest(chest2.id);
 								}
-								player.SendTileSquare(tilex, tiley, 3);
+								foreach (TSPlayer plr in TShock.Players.Where(p => p != null && p.Active))
+									plr.SendTileSquare(tilex, tiley, 3);
 								args.Handled = true;
 							}
 						}

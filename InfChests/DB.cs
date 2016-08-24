@@ -399,7 +399,8 @@ namespace InfChests
 					int tilex = reader.Get<int>("X");
 					int tiley = reader.Get<int>("Y");
 					WorldGen.KillTile(tilex, tiley, noItem: true);
-					NetMessage.SendTileSquare(index, tilex, tiley, 3);
+					foreach (TSPlayer plr in TShock.Players.Where(p => p != null && p.Active))
+						plr.SendTileSquare(tilex, tiley, 3);
 				}
 			}
 

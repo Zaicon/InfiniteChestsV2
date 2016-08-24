@@ -467,19 +467,30 @@ namespace InfChests
 					}
 					break;
 				case chestAction.none:
-					if (chest.userid != -1 && !player.IsLoggedIn && !chest.isPublic)
+					if (chest.userid != -1 && !player.IsLoggedIn && !chest.isPublic && !chest.groups.Contains(TShock.Config.DefaultGuestGroupName))
 						player.SendErrorMessage("You must be logged in to use this chest.");
-					else if (!chest.isPublic && chest.userid != -1 && !player.HasPermission("ic.edit") && chest.userid != player.User.ID && !chest.users.Contains(player.User.ID) && !chest.groups.Contains(player.Group.Name))
+					else if (player.IsLoggedIn && !chest.isPublic && chest.userid != -1 && !player.HasPermission("ic.edit") && chest.userid != player.User.ID && !chest.users.Contains(player.User.ID) && !chest.groups.Contains(player.Group.Name))
 						player.SendErrorMessage("This chest is protected.");
 					else
 					{
-						int chestindex = Chest.FindEmptyChest(tilex, tiley);
+						int chestindex = -1;
+						for (int i = 0; i < Main.chest.Length; i++)
+						{
+							if (Main.chest[i] == null)
+							{
+								chestindex = i;
+								break;
+							}
+						}
 						if (chestindex == -1)
 						{
 							player.SendErrorMessage("An error occured.");
 							TShock.Log.ConsoleError("Error: No empty chests available.");
 							break;
 						}
+
+						playerData[index].dbid = chest.id;
+						playerData[index].mainid = chestindex;
 
 						Item[] writeItems;
 
@@ -513,8 +524,6 @@ namespace InfChests
 							x = chest.x,
 							y = chest.y
 						};
-						playerData[index].dbid = chest.id;
-						playerData[index].mainid = chestindex;
 
 						for (int i = 0; i < Main.chest[chestindex].item.Length; i++)
 						{
@@ -814,6 +823,12 @@ namespace InfChests
 				args.Player.SendWarningMessage("Restoring chests. Please wait...");
 				await Task.Factory.StartNew(() => DB.restoreChests());
 				args.Player.SendSuccessMessage("Restored chests. InfiniteChest features are now disabled.");
+				return;
+			}
+
+			if (Main.player.ToList().Exists(p => p.chest != -1))
+			{
+				args.Player.SendErrorMessage("This command cannot be ran while chests are in use.");
 				return;
 			}
 

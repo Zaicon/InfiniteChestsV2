@@ -469,7 +469,7 @@ namespace InfChests
 				case chestAction.none:
 					if (chest.userid != -1 && !player.IsLoggedIn && !chest.isPublic)
 						player.SendErrorMessage("You must be logged in to use this chest.");
-					else if (!chest.isPublic && chest.userid != -1 && !player.HasPermission("ic.edit") && chest.userid != player.User.ID)
+					else if (!chest.isPublic && chest.userid != -1 && !player.HasPermission("ic.edit") && chest.userid != player.User.ID && !chest.users.Contains(player.User.ID) && !chest.groups.Contains(player.Group.Name))
 						player.SendErrorMessage("This chest is protected.");
 					else
 					{

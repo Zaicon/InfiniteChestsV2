@@ -69,9 +69,11 @@ namespace InfChests
 			Commands.ChatCommands.Add(new Command("ic.prune", PruneChests, "prunechests"));
 		}
 
-		private void onWorldLoaded(EventArgs args)
+		private async void onWorldLoaded(EventArgs args)
 		{
-			convertChests();
+			lockChests = true;
+			await Task.Factory.StartNew(() => convertChests());
+			lockChests = false;
 		}
 
 		private async void onGetData(GetDataEventArgs args)

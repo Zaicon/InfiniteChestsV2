@@ -84,7 +84,15 @@ namespace InfChests
 
 		public static bool addChest(InfChest _chest)
 		{
-			string query = $"INSERT INTO InfChests (UserID, X, Y, Name, Public, Refill, Users, Groups, WorldID) VALUES ({_chest.userid}, {_chest.x}, {_chest.y}, '', {0}, {0}, '', '', {Main.worldID})";
+			string query = $"SELECT * FROM InfChests WHERE X = {_chest.x} && Y = {_chest.y} && WorldID = {Main.worldID}";
+
+			using (var reader = db.QueryReader(query))
+			{
+				if (reader.Read())
+					return false;
+			}
+
+			query = $"INSERT INTO InfChests (UserID, X, Y, Name, Public, Refill, Users, Groups, WorldID) VALUES ({_chest.userid}, {_chest.x}, {_chest.y}, '', {0}, {0}, '', '', {Main.worldID})";
 			int result = db.Query(query);
 			query = $"SELECT MAX(ID) AS lastchestid FROM InfChests";
 

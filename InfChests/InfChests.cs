@@ -86,10 +86,22 @@ namespace InfChests
 					case PacketTypes.ChestGetContents: //31 GetContents
 						short tilex = reader.ReadInt16();
 						short tiley = reader.ReadInt16();
+
+						//if player opens a new chest (nearby) without closing first chest
+						if (playerData[args.Msg.whoAmI].mainid != -1)
+						{
+							Main.chest[playerData[args.Msg.whoAmI].mainid] = null;
+							playerData[args.Msg.whoAmI].mainid = -1;
+							playerData[args.Msg.whoAmI].dbid = -1;
+						}
+
 						if (lockChests)
 							TShock.Players[args.Msg.whoAmI].SendWarningMessage("Chest conversion in progress. Please wait.");
 						else if (!playerData[args.Msg.whoAmI].lockChests)
 							await Task<bool>.Factory.StartNew(() => getChestContents(args.Msg.whoAmI, tilex, tiley));
+#if DEBUG
+						File.AppendAllText("debug.txt", $"31 ChestGetContents | tilex = {tilex} | tiley = {tiley}\n");
+#endif
 						args.Handled = true;
 						break;
 					case PacketTypes.ChestItem: //22 ChestItem
@@ -104,6 +116,10 @@ namespace InfChests
 						short stack = reader.ReadInt16();
 						byte prefix = reader.ReadByte();
 						short itemid = reader.ReadInt16();
+
+#if DEBUG
+						File.AppendAllText("debug.txt", $"22 ChestItem | chestid = {chestid} | slot = {itemslot} | stack = {stack} | prefix = {prefix} | itemid = {itemid}\n");
+#endif
 
 						//If someone sends this packet manually
 						if (Main.chest[chestid] == null)
@@ -136,6 +152,10 @@ namespace InfChests
 						if (Main.tile[tilex, tiley].frameX % 36 != 0)
 							tilex--;
 
+#if DEBUG
+						File.AppendAllText("debug.txt", $"33 ChestOpen | chestid = {chestid} | tilex = {tilex} | tiley = {tiley}\n");
+#endif
+
 						if (chestid == -1 && playerData[args.Msg.whoAmI].mainid != -1)
 						{
 							playerData[args.Msg.whoAmI].dbid = -1;
@@ -167,6 +187,11 @@ namespace InfChests
 						tiley = reader.ReadInt16();
 						short style = reader.ReadInt16();
 						int chestnum = -1;
+
+#if DEBUG
+						File.AppendAllText("debug.txt", $"34 TileKill | action = {action} | tilex = {tilex} | tiley = {tiley} | style = {style}\n");
+#endif
+
 						if (action == 0 || action == 2)
 						{
 							if (TShock.Regions.CanBuild(tilex, tiley, TShock.Players[args.Msg.whoAmI]))
@@ -225,16 +250,25 @@ namespace InfChests
 						}
 						break;
 					case PacketTypes.ChestName:
+#if DEBUG
+						File.AppendAllText("debug.txt", $"69 ChestName\n");
+#endif
 						//Do nothing - we don't handle chest name
 						args.Handled = true;
 						break;
 					case PacketTypes.ForceItemIntoNearestChest:
+
 						if (lockChests)
 						{
 							args.Handled = true;
 							return;
 						}
 						byte invslot = reader.ReadByte();
+
+#if DEBUG
+						File.AppendAllText("debug.txt", $"85 ForceItem | invslot {invslot}\n");
+#endif
+
 						//At the moment, we only allow quickstacking for chest owners & users with edit perm & users with correct password & non-refilling chests
 						if (TShock.Players[args.Msg.whoAmI].IsLoggedIn)
 						{
@@ -503,7 +537,7 @@ namespace InfChests
 
 						if (chest.refillTime > 0)
 						{
-							TShock.Players[index].SendWarningMessage("This chest refills every " + chest.refillTime + " seconds!");
+							
 							if (refillInfo.Exists(p => p.Item1 == chest.id))
 							{
 								int cindex = refillInfo.FindIndex(p => p.Item1 == chest.id);
@@ -512,14 +546,20 @@ namespace InfChests
 									refillInfo.RemoveAt(cindex);
 									writeItems = chest.items;
 									refillInfo.Add(new Tuple<int, Item[], DateTime>(chest.id, chest.items, DateTime.Now));
+									TShock.Players[index].SendWarningMessage("This chest will refill in " + chest.refillTime + " seconds!");
 								}
 								else
+								{
 									writeItems = refillInfo[cindex].Item2;
+									int time = chest.refillTime - (DateTime.Now - refillInfo[cindex].Item3).Seconds;
+									TShock.Players[index].SendWarningMessage("This chest will refill in " + time + " seconds!");
+								}
 							}
 							else
 							{
 								writeItems = chest.items;
 								refillInfo.Add(new Tuple<int, Item[], DateTime>(chest.id, chest.items, DateTime.Now));
+								TShock.Players[index].SendWarningMessage("This chest refills every " + chest.refillTime + " seconds!");
 							}
 						}
 						else
@@ -588,7 +628,7 @@ namespace InfChests
 				if (!PaginationTools.TryParsePageNumber(args.Parameters, 1, args.Player, out pageNumber))
 					return;
 
-				PaginationTools.SendPage(args.Player, pageNumber, help, new PaginationTools.Settings() { HeaderFormat = "Chest Subcommands ({0}/{1}):", FooterFormat = "Type /chest help {{0}} for more." });
+				PaginationTools.SendPage(args.Player, pageNumber, help, new PaginationTools.Settings() { HeaderFormat = "Chest Subcommands ({0}/{1}):", FooterFormat = "Type /chest help {0} for more." });
 
 				return;
 			}

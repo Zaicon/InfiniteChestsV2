@@ -16,7 +16,7 @@ namespace InfChests
 	public class InfChests : TerrariaPlugin
 	{
 		#region Plugin Info
-		public override string Name { get { return "InfiniteChests (Beta)"; } }
+		public override string Name { get { return "InfiniteChests"; } }
 		public override string Author { get { return "Zaicon"; } }
 		public override string Description { get { return "A server-sided chest manager."; } }
 		public override Version Version { get { return Assembly.GetExecutingAssembly().GetName().Version; } }

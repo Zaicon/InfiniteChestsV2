@@ -242,6 +242,12 @@ namespace InfChests
 
 		public static bool setItems(int id, Item[] items)
 		{
+			if (items == null)
+			{
+				TShock.Log.ConsoleError("Error setting items (nullref).");
+				return false;
+			}
+
 			int result = 0;
 			for (int i = 0; i < 40; i++)
 			{

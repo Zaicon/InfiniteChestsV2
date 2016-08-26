@@ -248,22 +248,19 @@ namespace InfChests
 				return false;
 		}
 
-		public static bool setItems(int id, Item[] items)
+		public static bool setItem(int id, Item item, int slot)
 		{
-			if (items == null)
+			if (item == null)
 			{
 				TShock.Log.ConsoleError("Error setting items (nullref).");
 				return false;
 			}
-
-			int result = 0;
-			for (int i = 0; i < 40; i++)
-			{
-				string query = $"UPDATE ChestItems SET Type = {items[i].type}, Stack = {items[i].stack}, Prefix = {items[i].prefix} WHERE ChestID = {id} AND Slot = {i}";
-				result += db.Query(query);
-			}
 			
-			if (result == 40)
+			string query = $"UPDATE ChestItems SET Type = {item.type}, Stack = {item.stack}, Prefix = {item.prefix} WHERE ChestID = {id} AND Slot = {slot}";
+
+			int result = db.Query(query);
+
+			if (result == 1)
 				return true;
 			else
 				return false;

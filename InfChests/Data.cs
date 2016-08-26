@@ -21,6 +21,8 @@ namespace InfChests
 		public string groupToChange;
 		public bool lockChests;
 		public string chestName;
+		public int transactionsLeft;
+		public bool hasClosed;
 
 		public Data(int index)
 		{
@@ -36,6 +38,8 @@ namespace InfChests
 			groupToChange = "";
 			lockChests = false;
 			chestName = "";
+			transactionsLeft = 0;
+			hasClosed = false;
 		}
 
 		public void onElapsed(object sender, ElapsedEventArgs args)
@@ -121,10 +125,13 @@ namespace InfChests
 			//update database
 			for (int i = 0; i < nearbyChests.Count; i++)
 			{
-				if (nearbyChests[i].items == original[i])
-					continue;
-				else
-					DB.setItems(nearbyChests[i].id, nearbyChests[i].items);
+				for (int j = 0; j < 50; j++)
+				{
+					if (nearbyChests[i].items[j] == original[i][j])
+						continue;
+					else
+						DB.setItem(nearbyChests[i].id, nearbyChests[i].items[j], j);
+				}
 			}
 			//restore defaults
 			slotQueue.Clear();

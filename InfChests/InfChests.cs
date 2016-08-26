@@ -92,9 +92,14 @@ namespace InfChests
 						//if player opens a new chest (nearby) without closing first chest
 						if (playerData[args.Msg.whoAmI].mainid != -1)
 						{
+							//if transactions aren't done, just ignore
+							if (playerData[args.Msg.whoAmI].transactionsLeft > 0)
+								return;
+
 							Main.chest[playerData[args.Msg.whoAmI].mainid] = null;
 							playerData[args.Msg.whoAmI].mainid = -1;
 							playerData[args.Msg.whoAmI].dbid = -1;
+							NetMessage.SendData((int)PacketTypes.SyncPlayerChestIndex, -1, args.Msg.whoAmI, "", args.Msg.whoAmI, -1);
 						}
 
 						if (lockChests)
@@ -102,7 +107,7 @@ namespace InfChests
 						else if (!playerData[args.Msg.whoAmI].lockChests)
 							await Task<bool>.Factory.StartNew(() => getChestContents(args.Msg.whoAmI, tilex, tiley));
 #if DEBUG
-						File.AppendAllText("debug.txt", $"31 ChestGetContents | tilex = {tilex} | tiley = {tiley}\n");
+						File.AppendAllText("debug.txt", $"31 ChestGetContents | WhoAmI: {args.Msg.whoAmI} | tilex = {tilex} | tiley = {tiley}\n");
 #endif
 						args.Handled = true;
 						break;
@@ -120,30 +125,46 @@ namespace InfChests
 						short itemid = reader.ReadInt16();
 
 #if DEBUG
-						File.AppendAllText("debug.txt", $"22 ChestItem | chestid = {chestid} | slot = {itemslot} | stack = {stack} | prefix = {prefix} | itemid = {itemid}\n");
+						File.AppendAllText("debug.txt", $"22 ChestItem | WhoAmI: {args.Msg.whoAmI} | chestid = {chestid} | slot = {itemslot} | stack = {stack} | prefix = {prefix} | itemid = {itemid}\n");
 #endif
 
 						//If someone sends this packet manually
 						if (Main.chest[chestid] == null)
 							break;
 
-						Chest chest = (Chest)Main.chest[chestid].Clone();
-						chest.item[itemslot] = new Item();
-						chest.item[itemslot].SetDefaults(itemid);
-						chest.item[itemslot].stack = stack;
-						chest.item[itemslot].prefix = prefix;
+						await Task.Factory.StartNew(() => {
+							Chest chest = (Chest)Main.chest[chestid].Clone();
+							chest.item[itemslot] = new Item();
+							chest.item[itemslot].SetDefaults(itemid);
+							chest.item[itemslot].stack = stack;
+							chest.item[itemslot].prefix = prefix;
 
-						//If chest is refillable, only edit local copy
-						if (refillInfo.Exists(p => p.Item1 == playerData[args.Msg.whoAmI].dbid))
-						{
-							int index = refillInfo.FindIndex(p => p.Item1 == playerData[args.Msg.whoAmI].dbid);
-							var t = new Tuple<int, Item[], DateTime>(refillInfo[index].Item1, chest.item, refillInfo[index].Item3);
-							refillInfo[index] = t;
-							return;
-						}
+							//If chest is refillable, only edit local copy
+							if (refillInfo.Exists(p => p.Item1 == playerData[args.Msg.whoAmI].dbid))
+							{
+								int index = refillInfo.FindIndex(p => p.Item1 == playerData[args.Msg.whoAmI].dbid);
+								var t = new Tuple<int, Item[], DateTime>(refillInfo[index].Item1, chest.item, refillInfo[index].Item3);
+								refillInfo[index] = t;
+								
+								return;
+							}
 
-						if (!DB.setItems(playerData[args.Msg.whoAmI].dbid, chest.item))
-							TShock.Log.Error("Error updating items in DB.");
+							playerData[args.Msg.whoAmI].transactionsLeft++;
+							if (!DB.setItem(playerData[args.Msg.whoAmI].dbid, chest.item[itemslot], itemslot))
+								TShock.Log.Error("Error updating items in DB.");
+							playerData[args.Msg.whoAmI].transactionsLeft--;
+
+							if (playerData[args.Msg.whoAmI].hasClosed && playerData[args.Msg.whoAmI].transactionsLeft == 0)
+							{
+								Main.chest[playerData[args.Msg.whoAmI].mainid] = null;
+								playerData[args.Msg.whoAmI].mainid = -1;
+								playerData[args.Msg.whoAmI].dbid = -1;
+								playerData[args.Msg.whoAmI].hasClosed = false;
+								NetMessage.SendData((int)PacketTypes.SyncPlayerChestIndex, -1, args.Msg.whoAmI, "", args.Msg.whoAmI, -1);
+							}
+							
+						});
+
 						break;
 					case PacketTypes.ChestOpen: //33 SetChestName
 						chestid = reader.ReadInt16();
@@ -155,11 +176,16 @@ namespace InfChests
 							tilex--;
 
 #if DEBUG
-						File.AppendAllText("debug.txt", $"33 ChestOpen | chestid = {chestid} | tilex = {tilex} | tiley = {tiley}\n");
+						File.AppendAllText("debug.txt", $"33 ChestOpen | WhoAmI: {args.Msg.whoAmI} | chestid = {chestid} | tilex = {tilex} | tiley = {tiley}\n");
 #endif
 
 						if (chestid == -1 && playerData[args.Msg.whoAmI].mainid != -1)
 						{
+							if (playerData[args.Msg.whoAmI].transactionsLeft > 0)
+							{
+								playerData[args.Msg.whoAmI].hasClosed = true;
+								break;
+							}
 							playerData[args.Msg.whoAmI].dbid = -1;
 							Main.chest[playerData[args.Msg.whoAmI].mainid] = null;
 							playerData[args.Msg.whoAmI].mainid = -1;
@@ -191,7 +217,7 @@ namespace InfChests
 						int chestnum = -1;
 
 #if DEBUG
-						File.AppendAllText("debug.txt", $"34 TileKill | action = {action} | tilex = {tilex} | tiley = {tiley} | style = {style}\n");
+						File.AppendAllText("debug.txt", $"34 TileKill | WhoAmI: {args.Msg.whoAmI} | action = {action} | tilex = {tilex} | tiley = {tiley} | style = {style}\n");
 #endif
 
 						if (action == 0 || action == 2)
@@ -240,6 +266,10 @@ namespace InfChests
 								{
 									//Do nothing - ingore tilekill attempt when items are in chest
 								}
+								else if (chest2.refillTime > 0)
+								{
+									player.SendErrorMessage("You cannot destroy refilling chests.");
+								}
 								else
 								{
 									WorldGen.KillTile(tilex, tiley);
@@ -253,7 +283,7 @@ namespace InfChests
 						break;
 					case PacketTypes.ChestName:
 #if DEBUG
-						File.AppendAllText("debug.txt", $"69 ChestName\n");
+						File.AppendAllText("debug.txt", $"69 ChestName | WhoAmI: {args.Msg.whoAmI}\n");
 #endif
 						//Do nothing - we don't handle chest name
 						args.Handled = true;
@@ -268,7 +298,7 @@ namespace InfChests
 						byte invslot = reader.ReadByte();
 
 #if DEBUG
-						File.AppendAllText("debug.txt", $"85 ForceItem | invslot {invslot}\n");
+						File.AppendAllText("debug.txt", $"85 ForceItem | WhoAmI: {args.Msg.whoAmI} | invslot {invslot}\n");
 #endif
 
 						//At the moment, we only allow quickstacking for chest owners & users with edit perm & users with correct password & non-refilling chests
@@ -311,6 +341,9 @@ namespace InfChests
 			{
 				player.SendErrorMessage("This chest is in use.");
 				playerData[index].action = chestAction.none;
+				
+				player.SendData(PacketTypes.ChestOpen, "", -1);
+
 				return true;
 			}
 

@@ -7,7 +7,6 @@ using Terraria;
 using Terraria.IO;
 using TerrariaApi.Server;
 using TShockAPI;
-using TShockAPI.Hooks;
 using System.Linq;
 
 namespace InfChests
@@ -81,40 +80,55 @@ namespace InfChests
 			if (notInfChests)
 				return;
 
+			int index = args.Msg.whoAmI;
+
 			using (var reader = new BinaryReader(new MemoryStream(args.Msg.readBuffer, args.Index, args.Length)))
 			{
 				switch (args.MsgID)
 				{
 					case PacketTypes.ChestGetContents: //31 GetContents
+
 						short tilex = reader.ReadInt16();
 						short tiley = reader.ReadInt16();
 
 						//if player opens a new chest (nearby) without closing first chest
-						if (playerData[args.Msg.whoAmI].mainid != -1)
+						if (playerData[index].dbid != -1)
 						{
-							//if transactions aren't done, just ignore
-							if (playerData[args.Msg.whoAmI].transactionsLeft > 0)
-								return;
+							Task.Factory.StartNew(() =>
+							{
+								int oldChestID = playerData[index].dbid;
+								Item[] oldChestItems = playerData[index].oldChestItems;
+								Item[] newChestItems = playerData[index].newChestItems;
 
-							Main.chest[playerData[args.Msg.whoAmI].mainid] = null;
-							playerData[args.Msg.whoAmI].mainid = -1;
-							playerData[args.Msg.whoAmI].dbid = -1;
-							NetMessage.SendData((int)PacketTypes.SyncPlayerChestIndex, -1, args.Msg.whoAmI, "", args.Msg.whoAmI, -1);
+								for (int i = 0; i < 40; i++)
+								{
+									if (oldChestItems[i] != newChestItems[i])
+									{
+										DB.setItem(oldChestID, newChestItems[i], i);
+									}
+								}
+							});
+
+							playerData[index].dbid = -1;
+							playerData[index].oldChestItems = new Item[40];
+							playerData[index].newChestItems = new Item[40];
+							NetMessage.SendData((int)PacketTypes.SyncPlayerChestIndex, -1, index, "", index, -1);
 						}
 
 						if (lockChests)
-							TShock.Players[args.Msg.whoAmI].SendWarningMessage("Chest conversion in progress. Please wait.");
-						else if (!playerData[args.Msg.whoAmI].lockChests)
+							TShock.Players[index].SendWarningMessage("Chest conversion in progress. Please wait.");
+						else if (!playerData[index].lockChests)
 							await Task<bool>.Factory.StartNew(() => getChestContents(args.Msg.whoAmI, tilex, tiley));
+						else
+							TShock.Players[index].SendErrorMessage("Please try again shortly.");
 #if DEBUG
 						File.AppendAllText("debug.txt", $"31 ChestGetContents | WhoAmI: {args.Msg.whoAmI} | tilex = {tilex} | tiley = {tiley}\n");
 #endif
-						args.Handled = true;
 						break;
 					case PacketTypes.ChestItem: //22 ChestItem
 						if (lockChests)
 						{
-							TShock.Players[args.Msg.whoAmI].SendWarningMessage("Chest conversion in progress. Please wait.");
+							TShock.Players[index].SendWarningMessage("Chest conversion in progress. Please wait.");
 							args.Handled = true;
 							return;
 						}
@@ -129,39 +143,41 @@ namespace InfChests
 #endif
 
 						//If someone sends this packet manually
-						if (Main.chest[chestid] == null)
+						if (playerData[index].dbid == -1)
 							break;
 
 						await Task.Factory.StartNew(() => {
-							Chest chest = (Chest)Main.chest[chestid].Clone();
-							chest.item[itemslot] = new Item();
-							chest.item[itemslot].SetDefaults(itemid);
-							chest.item[itemslot].stack = stack;
-							chest.item[itemslot].prefix = prefix;
 
-							//If chest is refillable, only edit local copy
-							if (refillInfo.Exists(p => p.Item1 == playerData[args.Msg.whoAmI].dbid))
+							playerData[index].newChestItems[itemslot] = new Item();
+							playerData[index].newChestItems[itemslot].SetDefaults(itemid);
+							playerData[index].newChestItems[itemslot].stack = stack;
+							playerData[index].newChestItems[itemslot].prefix = prefix;
+
+							//If chest is refillable, only edit refill copy
+							if (refillInfo.Exists(p => p.Item1 == playerData[index].dbid))
 							{
-								int index = refillInfo.FindIndex(p => p.Item1 == playerData[args.Msg.whoAmI].dbid);
-								var t = new Tuple<int, Item[], DateTime>(refillInfo[index].Item1, chest.item, refillInfo[index].Item3);
-								refillInfo[index] = t;
+								int rindex = refillInfo.FindIndex(p => p.Item1 == playerData[index].dbid);
+								var t = new Tuple<int, Item[], DateTime>(refillInfo[rindex].Item1, playerData[index].newChestItems, refillInfo[rindex].Item3);
+								refillInfo[rindex] = t;
 								
 								return;
 							}
 
-							playerData[args.Msg.whoAmI].transactionsLeft++;
-							if (!DB.setItem(playerData[args.Msg.whoAmI].dbid, chest.item[itemslot], itemslot))
-								TShock.Log.Error("Error updating items in DB.");
-							playerData[args.Msg.whoAmI].transactionsLeft--;
+							// We're now handling all db transactions upon chest closing
 
-							if (playerData[args.Msg.whoAmI].hasClosed && playerData[args.Msg.whoAmI].transactionsLeft == 0)
-							{
-								Main.chest[playerData[args.Msg.whoAmI].mainid] = null;
-								playerData[args.Msg.whoAmI].mainid = -1;
-								playerData[args.Msg.whoAmI].dbid = -1;
-								playerData[args.Msg.whoAmI].hasClosed = false;
-								NetMessage.SendData((int)PacketTypes.SyncPlayerChestIndex, -1, args.Msg.whoAmI, "", args.Msg.whoAmI, -1);
-							}
+							//playerData[args.Msg.whoAmI].transactionsLeft++;
+							//if (!DB.setItem(playerData[args.Msg.whoAmI].dbid, chest.item[itemslot], itemslot))
+							//	TShock.Log.Error("Error updating items in DB.");
+							//playerData[args.Msg.whoAmI].transactionsLeft--;
+
+							//if (playerData[args.Msg.whoAmI].hasClosed && playerData[args.Msg.whoAmI].transactionsLeft == 0)
+							//{
+							//	Main.chest[playerData[args.Msg.whoAmI].mainid] = null;
+							//	playerData[args.Msg.whoAmI].mainid = -1;
+							//	playerData[args.Msg.whoAmI].dbid = -1;
+							//	playerData[args.Msg.whoAmI].hasClosed = false;
+							//	NetMessage.SendData((int)PacketTypes.SyncPlayerChestIndex, -1, args.Msg.whoAmI, "", args.Msg.whoAmI, -1);
+							//}
 							
 						});
 
@@ -179,17 +195,25 @@ namespace InfChests
 						File.AppendAllText("debug.txt", $"33 ChestOpen | WhoAmI: {args.Msg.whoAmI} | chestid = {chestid} | tilex = {tilex} | tiley = {tiley}\n");
 #endif
 
-						if (chestid == -1 && playerData[args.Msg.whoAmI].mainid != -1)
+						if (chestid == -1 && playerData[index].dbid != -1)
 						{
-							if (playerData[args.Msg.whoAmI].transactionsLeft > 0)
-							{
-								playerData[args.Msg.whoAmI].hasClosed = true;
-								break;
-							}
-							playerData[args.Msg.whoAmI].dbid = -1;
-							Main.chest[playerData[args.Msg.whoAmI].mainid] = null;
-							playerData[args.Msg.whoAmI].mainid = -1;
-							NetMessage.SendData((int)PacketTypes.SyncPlayerChestIndex, -1, args.Msg.whoAmI, "", args.Msg.whoAmI, -1);
+							NetMessage.SendData((int)PacketTypes.SyncPlayerChestIndex, -1, index, "", index, -1);
+							Task.Factory.StartNew(() => {
+								int oldChestID = playerData[index].dbid;
+								Item[] oldChestItems = playerData[index].oldChestItems;
+								Item[] newChestItems = playerData[index].newChestItems;
+
+								for (int i = 0; i < 40; i++)
+								{
+									if (oldChestItems[i] != newChestItems[i])
+									{
+										DB.setItem(oldChestID, newChestItems[i], i);
+									}
+								}
+							});
+							playerData[index].dbid = -1;
+							playerData[index].oldChestItems = new Item[40];
+							playerData[index].newChestItems = new Item[40];
 							args.Handled = true;
 						}
 						else if (chestid == -1 || chestid == -3 || chestid == -2) // -2 is open piggy bank, -3 is open safe, -1 is close piggy bank/safe
@@ -206,7 +230,7 @@ namespace InfChests
 					case PacketTypes.TileKill:
 						if (lockChests)
 						{
-							TShock.Players[args.Msg.whoAmI].SendWarningMessage("Chest conversion in progress. Please wait.");
+							TShock.Players[index].SendWarningMessage("Chest conversion in progress. Please wait.");
 							args.Handled = true;
 							return;
 						}
@@ -222,9 +246,9 @@ namespace InfChests
 
 						if (action == 0 || action == 2)
 						{
-							if (TShock.Regions.CanBuild(tilex, tiley, TShock.Players[args.Msg.whoAmI]))
+							if (TShock.Regions.CanBuild(tilex, tiley, TShock.Players[index]))
 							{
-								playerData[args.Msg.whoAmI].lockChests = true;
+								playerData[index].lockChests = true;
 								chestnum = WorldGen.PlaceChest(tilex, tiley, type: action == 0 ? (ushort)21 : (ushort)88, style: style);
 								if (chestnum == -1)
 									break;
@@ -234,18 +258,18 @@ namespace InfChests
 								DB.addChest(new InfChest()
 								{
 									items = Main.chest[chestnum].item,
-									userid = TShock.Players[args.Msg.whoAmI].HasPermission("ic.protect") ? TShock.Players[args.Msg.whoAmI].User.ID : -1,
+									userid = TShock.Players[index].HasPermission("ic.protect") ? TShock.Players[index].User.ID : -1,
 									x = Main.chest[chestnum].x,
 									y = Main.chest[chestnum].y
 								});
 								Main.chest[chestnum] = null;
-								playerData[args.Msg.whoAmI].lockChests = false;
+								playerData[index].lockChests = false;
 							}
 							args.Handled = true;
 						}
 						else
 						{
-							if (TShock.Regions.CanBuild(tilex, tiley, TShock.Players[args.Msg.whoAmI]) && (Main.tile[tilex, tiley].type == 21 || Main.tile[tilex, tiley].type == 88))
+							if (TShock.Regions.CanBuild(tilex, tiley, TShock.Players[index]) && (Main.tile[tilex, tiley].type == 21 || Main.tile[tilex, tiley].type == 88))
 							{
 								if (Main.tile[tilex, tiley].frameY % 36 != 0)
 									tiley--;
@@ -253,7 +277,7 @@ namespace InfChests
 									tilex--;
 
 								InfChest chest2 = DB.getChest(tilex, tiley);
-								TSPlayer player = TShock.Players[args.Msg.whoAmI];
+								TSPlayer player = TShock.Players[index];
 								if (chest2 == null)
 								{
 									WorldGen.KillTile(tilex, tiley);
@@ -302,13 +326,13 @@ namespace InfChests
 #endif
 
 						//At the moment, we only allow quickstacking for chest owners & users with edit perm & users with correct password & non-refilling chests
-						if (TShock.Players[args.Msg.whoAmI].IsLoggedIn)
+						if (TShock.Players[index].IsLoggedIn)
 						{
-							playerData[args.Msg.whoAmI].slotQueue.Add(invslot);
-							if (playerData[args.Msg.whoAmI].slotQueue.Count == 1)
+							playerData[index].slotQueue.Add(invslot);
+							if (playerData[index].slotQueue.Count == 1)
 							{
-								playerData[args.Msg.whoAmI].quickStackTimer.Start();
-								playerData[args.Msg.whoAmI].location = new Point(TShock.Players[args.Msg.whoAmI].TileX, TShock.Players[args.Msg.whoAmI].TileY);
+								playerData[index].quickStackTimer.Start();
+								playerData[index].location = new Point(TShock.Players[index].TileX, TShock.Players[index].TileY);
 							}
 						}
 						args.Handled = true;
@@ -549,24 +573,26 @@ namespace InfChests
 						player.SendErrorMessage("This chest is protected.");
 					else
 					{
-						int chestindex = -1;
-						for (int i = 0; i < Main.chest.Length; i++)
-						{
-							if (Main.chest[i] == null)
-							{
-								chestindex = i;
-								break;
-							}
-						}
-						if (chestindex == -1)
-						{
-							player.SendErrorMessage("An error occured.");
-							TShock.Log.ConsoleError("Error: No empty chests available.");
-							break;
-						}
+						//int chestindex = -1;
+						//for (int i = 0; i < Main.chest.Length; i++)
+						//{
+						//	if (Main.chest[i] == null)
+						//	{
+						//		chestindex = i;
+						//		break;
+						//	}
+						//}
+						//if (chestindex == -1)
+						//{
+						//	player.SendErrorMessage("An error occured.");
+						//	TShock.Log.ConsoleError("Error: No empty chests available.");
+						//	break;
+						//}
 
 						playerData[index].dbid = chest.id;
-						playerData[index].mainid = chestindex;
+						playerData[index].oldChestItems = chest.items;
+						playerData[index].newChestItems = chest.items;
+						//playerData[index].mainid = chestindex;
 
 						Item[] writeItems;
 
@@ -600,19 +626,19 @@ namespace InfChests
 						else
 							writeItems = chest.items;
 
-						Main.chest[chestindex] = new Chest()
-						{
-							item = writeItems,
-							x = chest.x,
-							y = chest.y
-						};
+						//Main.chest[chestindex] = new Chest()
+						//{
+						//	item = writeItems,
+						//	x = chest.x,
+						//	y = chest.y
+						//};
 
-						for (int i = 0; i < Main.chest[chestindex].item.Length; i++)
+						for (int i = 0; i < writeItems.Length; i++)
 						{
-							player.SendData(PacketTypes.ChestItem, "", chestindex, i, Main.chest[chestindex].item[i].stack, Main.chest[chestindex].item[i].prefix, Main.chest[chestindex].item[i].type);
+							player.SendData(PacketTypes.ChestItem, "", 0, i, writeItems[i].stack, writeItems[i].prefix, writeItems[i].type);
 						}
-						player.SendData(PacketTypes.ChestOpen, "", chestindex, Main.chest[chestindex].x, Main.chest[chestindex].y, Main.chest[chestindex].name.Length);
-						NetMessage.SendData((int)PacketTypes.SyncPlayerChestIndex, -1, index, "", index, chestindex);
+						player.SendData(PacketTypes.ChestOpen, "", 0, chest.x, chest.y);
+						NetMessage.SendData((int)PacketTypes.SyncPlayerChestIndex, -1, index, "", index, 0);
 					}
 					break;
 			}
@@ -897,7 +923,7 @@ namespace InfChests
 					args.Player.SendErrorMessage("There are more than 1000 chests in the database, which is more than the map can hold.");
 					return;
 				}
-				if (playerData.Any(p => p.Value.mainid != -1))
+				if (Main.player.ToList().Any(p => p.chest != -1))
 				{
 					args.Player.SendErrorMessage("This command cannot be ran while chests are in use.");
 					return;
@@ -908,7 +934,7 @@ namespace InfChests
 				return;
 			}
 
-			if (Main.player.ToList().Exists(p => p.chest != -1))
+			if (Main.player.ToList().Any(p => p.chest != -1))
 			{
 				args.Player.SendErrorMessage("This command cannot be ran while chests are in use.");
 				return;
@@ -933,7 +959,7 @@ namespace InfChests
 			for (int i = 0; i < Main.chest.Length; i++)
 			{
 				Chest chest = Main.chest[i];
-				if (chest != null && !playerData.Values.Any(p => p.mainid == i))
+				if (chest != null && !Main.player.ToList().Exists(p => p.chest == i))
 				{
 					InfChest ichest = new InfChest()
 					{

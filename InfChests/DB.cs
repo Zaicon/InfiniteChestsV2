@@ -65,23 +65,6 @@ namespace InfChests
 				new SqlColumn("ChestID", MySqlDbType.Int32) { Length = 7 }));
 		}
 
-		//public static bool addChest(InfChest _chest)
-		//{
-		//	string query = $"INSERT INTO InfChests (UserID, X, Y, Items, Public, Refill, WorldID) VALUES ({_chest.userid}, {_chest.x}, {_chest.y}, '{_chest.ToString()}', {0}, {0}, {Main.worldID})";
-		//string query = "INSERT INTO InfChests (UserID, X, Y, Public, Refill, WorldID) VALUES (@userid, @x, @y, @public, @refill, @worldid);";
-		//int result = db.Execute(query, new { userid = _chest.userid, x = _chest.x, y = _chest.y, @public = _chest.isPublic, refill = _chest.refillTime, worldid = Main.worldID});
-		//	int result = db.Query(query);
-		//	if (result != 1)
-		//	{
-		//		TShock.Log.ConsoleError("Unable to add Chest to database.");
-		//		return false;
-		//	}
-		//foreach (InfItem item in _chest.items)
-		//{
-		//	query = "INSERT INTO "
-		//}
-		//}
-
 		public static bool addChest(InfChest _chest)
 		{
 			string query = $"SELECT * FROM InfChests WHERE X = {_chest.x} && Y = {_chest.y} && WorldID = {Main.worldID}";
@@ -131,7 +114,7 @@ namespace InfChests
 			int result = db.Query(query);
 			query = $"DELETE FROM ChestItems WHERE ChestID = {id}";
 			result += db.Query(query);
-			if (result == 2)
+			if (result == 41)
 				return true;
 			else
 				return false;

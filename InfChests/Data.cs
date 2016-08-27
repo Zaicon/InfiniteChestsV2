@@ -10,7 +10,7 @@ namespace InfChests
 	public class Data
 	{
 		public int dbid;
-		public int mainid;
+		//public int mainid;
 		public chestAction action;
 		public int refillTime;
 		public Timer quickStackTimer;
@@ -21,13 +21,13 @@ namespace InfChests
 		public string groupToChange;
 		public bool lockChests;
 		public string chestName;
-		public int transactionsLeft;
-		public bool hasClosed;
+		public Item[] oldChestItems;
+		public Item[] newChestItems;
 
 		public Data(int index)
 		{
 			dbid = -1;
-			mainid = -1;
+			//mainid = -1;
 			action = chestAction.none;
 			refillTime = 0;
 			quickStackTimer = new Timer(1000); //wait one second for all quickstack packets to arrive
@@ -38,8 +38,8 @@ namespace InfChests
 			groupToChange = "";
 			lockChests = false;
 			chestName = "";
-			transactionsLeft = 0;
-			hasClosed = false;
+			oldChestItems = new Item[40];
+			newChestItems = new Item[40];
 		}
 
 		public void onElapsed(object sender, ElapsedEventArgs args)

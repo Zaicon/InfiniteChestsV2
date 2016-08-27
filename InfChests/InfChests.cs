@@ -94,11 +94,14 @@ namespace InfChests
 						//if player opens a new chest (nearby) without closing first chest
 						if (playerData[index].dbid != -1)
 						{
-							Task.Factory.StartNew(() =>
+							playerData[index].lockChests = true;
+
+							await Task.Factory.StartNew(() =>
 							{
+								
 								int oldChestID = playerData[index].dbid;
-								Item[] oldChestItems = playerData[index].oldChestItems;
-								Item[] newChestItems = playerData[index].newChestItems;
+								Item[] oldChestItems = (Item[])playerData[index].oldChestItems.Clone();
+								Item[] newChestItems = (Item[])playerData[index].newChestItems.Clone();
 
 								for (int i = 0; i < 40; i++)
 								{
@@ -108,6 +111,8 @@ namespace InfChests
 									}
 								}
 							});
+
+							playerData[index].lockChests = false;
 
 							playerData[index].dbid = -1;
 							playerData[index].oldChestItems = new Item[40];
@@ -198,10 +203,13 @@ namespace InfChests
 						if (chestid == -1 && playerData[index].dbid != -1)
 						{
 							NetMessage.SendData((int)PacketTypes.SyncPlayerChestIndex, -1, index, "", index, -1);
-							Task.Factory.StartNew(() => {
+							playerData[index].lockChests = true;
+
+							await Task.Factory.StartNew(() => {
+								
 								int oldChestID = playerData[index].dbid;
-								Item[] oldChestItems = playerData[index].oldChestItems;
-								Item[] newChestItems = playerData[index].newChestItems;
+								Item[] oldChestItems = (Item[])playerData[index].oldChestItems.Clone();
+								Item[] newChestItems = (Item[])playerData[index].newChestItems.Clone();
 
 								for (int i = 0; i < 40; i++)
 								{
@@ -210,7 +218,10 @@ namespace InfChests
 										DB.setItem(oldChestID, newChestItems[i], i);
 									}
 								}
+								
 							});
+
+							playerData[index].lockChests = false;
 							playerData[index].dbid = -1;
 							playerData[index].oldChestItems = new Item[40];
 							playerData[index].newChestItems = new Item[40];
@@ -264,6 +275,8 @@ namespace InfChests
 								});
 								Main.chest[chestnum] = null;
 								playerData[index].lockChests = false;
+								if (TShock.Players[index].HasPermission("ic.protect"))
+									TShock.Players[index].SendInfoMessage("This chest has been automatically protected under your account.");
 							}
 							args.Handled = true;
 						}
@@ -590,8 +603,8 @@ namespace InfChests
 						//}
 
 						playerData[index].dbid = chest.id;
-						playerData[index].oldChestItems = chest.items;
-						playerData[index].newChestItems = chest.items;
+						playerData[index].oldChestItems = (Item[])chest.items.Clone();
+						playerData[index].newChestItems = (Item[])chest.items.Clone();
 						//playerData[index].mainid = chestindex;
 
 						Item[] writeItems;
@@ -626,12 +639,12 @@ namespace InfChests
 						else
 							writeItems = chest.items;
 
-						//Main.chest[chestindex] = new Chest()
-						//{
-						//	item = writeItems,
-						//	x = chest.x,
-						//	y = chest.y
-						//};
+						Main.chest[0] = new Chest()
+						{
+							item = writeItems,
+							x = chest.x,
+							y = chest.y
+						};
 
 						for (int i = 0; i < writeItems.Length; i++)
 						{
@@ -639,6 +652,8 @@ namespace InfChests
 						}
 						player.SendData(PacketTypes.ChestOpen, "", 0, chest.x, chest.y);
 						NetMessage.SendData((int)PacketTypes.SyncPlayerChestIndex, -1, index, "", index, 0);
+
+						Main.chest[0] = null;
 					}
 					break;
 			}
@@ -757,6 +772,11 @@ namespace InfChests
 					}
 					break;
 				case "allow":
+					if (!args.Player.HasPermission("ic.claim"))
+					{
+						args.Player.SendErrorMessage("You do not have permission to allow other users to access this chest.");
+						return;
+					}
 					if (args.Parameters.Count < 2)
 						args.Player.SendErrorMessage("Invalid syntax: /chest allow <player name>");
 					else
@@ -775,6 +795,11 @@ namespace InfChests
 					}
 					break;
 				case "remove":
+					if (!args.Player.HasPermission("ic.claim"))
+					{
+						args.Player.SendErrorMessage("You do not have permission to remove chest access from other users.");
+						return;
+					}
 					if (args.Parameters.Count < 2)
 						args.Player.SendErrorMessage("Invalid syntax: /chest remove <player name>");
 					else
@@ -794,6 +819,11 @@ namespace InfChests
 					break;
 				case "allowgroup":
 				case "allowg":
+					if (!args.Player.HasPermission("ic.claim"))
+					{
+						args.Player.SendErrorMessage("You do not have permission to allow other groups to access this chest.");
+						return;
+					}
 					if (args.Parameters.Count != 2)
 						args.Player.SendErrorMessage("Invalid syntax: /chest allowgroup <group name>");
 					else
@@ -812,6 +842,11 @@ namespace InfChests
 					break;
 				case "removegroup":
 				case "removeg":
+					if (!args.Player.HasPermission("ic.claim"))
+					{
+						args.Player.SendErrorMessage("You do not have permission to remove chest access from other groups.");
+						return;
+					}
 					if (args.Parameters.Count != 2)
 						args.Player.SendErrorMessage("Invalid syntax: /chest removegroup <group name>");
 					else

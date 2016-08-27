@@ -67,7 +67,7 @@ namespace InfChests
 
 		public static bool addChest(InfChest _chest)
 		{
-			string query = $"SELECT * FROM InfChests WHERE X = {_chest.x} && Y = {_chest.y} && WorldID = {Main.worldID}";
+			string query = $"SELECT * FROM InfChests WHERE X = {_chest.x} AND Y = {_chest.y} AND WorldID = {Main.worldID}";
 
 			using (var reader = db.QueryReader(query))
 			{

@@ -718,7 +718,7 @@ namespace InfChests
 					help.Add("/chest info");
 				if (args.Player.HasPermission("ic.search"))
 					help.Add("/chest search <item name>");
-				if (args.Player.HasPermission("ic.claim"))
+				if (args.Player.HasPermission("ic.allow"))
 				{
 					help.Add("/chest allow <player name>");
 					help.Add("/chest remove <player name>");
@@ -808,7 +808,7 @@ namespace InfChests
 					}
 					break;
 				case "allow":
-					if (!args.Player.HasPermission("ic.claim"))
+					if (!args.Player.HasPermission("ic.allow"))
 					{
 						args.Player.SendErrorMessage("You do not have permission to allow other users to access this chest.");
 						return;
@@ -825,13 +825,18 @@ namespace InfChests
 							args.Player.SendErrorMessage("No player found by the name " + name);
 							return;
 						}
+						if (!TShock.Groups.GetGroupByName(user.Group).HasPermission("ic.allow"))
+						{
+							args.Player.SendErrorMessage("You cannot give chest access to " + user.Name + ".");
+							return;
+						}
 						playerData[args.Player.Index].userIDToChange = user.ID;
 						playerData[args.Player.Index].action = chestAction.allowUser;
 						args.Player.SendInfoMessage("Open a chest to allow " + name + " to access it.");
 					}
 					break;
 				case "remove":
-					if (!args.Player.HasPermission("ic.claim"))
+					if (!args.Player.HasPermission("ic.allow"))
 					{
 						args.Player.SendErrorMessage("You do not have permission to remove chest access from other users.");
 						return;
@@ -855,7 +860,7 @@ namespace InfChests
 					break;
 				case "allowgroup":
 				case "allowg":
-					if (!args.Player.HasPermission("ic.claim"))
+					if (!args.Player.HasPermission("ic.allow"))
 					{
 						args.Player.SendErrorMessage("You do not have permission to allow other groups to access this chest.");
 						return;
@@ -871,6 +876,11 @@ namespace InfChests
 							args.Player.SendErrorMessage("No group found by the name " + args.Parameters[1]);
 							return;
 						}
+						if (!group.HasPermission("ic.allow"))
+						{
+							args.Player.SendErrorMessage("You cannot give chest access to that group.");
+							return;
+						}
 						playerData[args.Player.Index].groupToChange = group.Name;
 						playerData[args.Player.Index].action = chestAction.allowGroup;
 						args.Player.SendInfoMessage("Open a chest to allow users from the group " + group.Name + " to access it.");
@@ -878,7 +888,7 @@ namespace InfChests
 					break;
 				case "removegroup":
 				case "removeg":
-					if (!args.Player.HasPermission("ic.claim"))
+					if (!args.Player.HasPermission("ic.allow"))
 					{
 						args.Player.SendErrorMessage("You do not have permission to remove chest access from other groups.");
 						return;

@@ -87,6 +87,7 @@ namespace InfChests
 				switch (args.MsgID)
 				{
 					case PacketTypes.ChestGetContents: //31 GetContents
+						args.Handled = true;
 
 						short tilex = reader.ReadInt16();
 						short tiley = reader.ReadInt16();
@@ -131,6 +132,8 @@ namespace InfChests
 #endif
 						break;
 					case PacketTypes.ChestItem: //22 ChestItem
+						args.Handled = true;
+
 						if (lockChests)
 						{
 							TShock.Players[index].SendWarningMessage("Chest conversion in progress. Please wait.");
@@ -188,6 +191,8 @@ namespace InfChests
 
 						break;
 					case PacketTypes.ChestOpen: //33 SetChestName
+						args.Handled = true;
+
 						chestid = reader.ReadInt16();
 						tilex = reader.ReadInt16();
 						tiley = reader.ReadInt16();
@@ -195,7 +200,8 @@ namespace InfChests
 							tiley--;
 						if (Main.tile[tilex, tiley].frameX % 36 != 0)
 							tilex--;
-
+						if (reader.ReadByte() > 0) //if we get chest rename, ignore
+							break;
 #if DEBUG
 						File.AppendAllText("debug.txt", $"33 ChestOpen | WhoAmI: {args.Msg.whoAmI} | chestid = {chestid} | tilex = {tilex} | tiley = {tiley}\n");
 #endif
@@ -225,7 +231,6 @@ namespace InfChests
 							playerData[index].dbid = -1;
 							playerData[index].oldChestItems = new Item[40];
 							playerData[index].newChestItems = new Item[40];
-							args.Handled = true;
 						}
 						else if (chestid == -1 || chestid == -3 || chestid == -2) // -2 is open piggy bank, -3 is open safe, -1 is close piggy bank/safe
 						{
@@ -326,12 +331,11 @@ namespace InfChests
 						args.Handled = true;
 						break;
 					case PacketTypes.ForceItemIntoNearestChest:
+						args.Handled = true;
 
 						if (lockChests)
-						{
-							args.Handled = true;
 							return;
-						}
+
 						byte invslot = reader.ReadByte();
 
 #if DEBUG
@@ -348,7 +352,6 @@ namespace InfChests
 								playerData[index].location = new Point(TShock.Players[index].TileX, TShock.Players[index].TileY);
 							}
 						}
-						args.Handled = true;
 						break;
 				}
 			}

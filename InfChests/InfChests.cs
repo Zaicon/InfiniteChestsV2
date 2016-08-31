@@ -610,7 +610,7 @@ namespace InfChests
 							if (refillInfo.ContainsKey(chest.id))
 							{
 								//int cindex = refillInfo.FindIndex(p => p.Item1 == chest.id);
-								if ((DateTime.Now - refillInfo[chest.id].lastView).Seconds > chest.refillTime)
+								if ((DateTime.Now - refillInfo[chest.id].lastView).TotalSeconds > chest.refillTime)
 								{
 									refillInfo[chest.id].items = (Item[])chest.items.Clone();
 									writeItems = refillInfo[chest.id].items;
@@ -646,7 +646,14 @@ namespace InfChests
 							player.SendData(PacketTypes.ChestItem, "", 0, i, writeItems[i].stack, writeItems[i].prefix, writeItems[i].type);
 						}
 						player.SendData(PacketTypes.ChestOpen, "", 0, chest.x, chest.y);
-						NetMessage.SendData((int)PacketTypes.SyncPlayerChestIndex, -1, index, "", index, 0);
+						try
+						{
+							NetMessage.SendData((int)PacketTypes.SyncPlayerChestIndex, -1, index, "", index, 0);
+						}
+						catch (Exception ex)
+						{
+							TShock.Log.Error("NetMessage.SendData(syncplayerchestindex) Error: " + ex.Message);
+						}
 
 						Main.chest[0] = null;
 					}

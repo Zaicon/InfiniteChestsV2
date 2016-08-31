@@ -486,5 +486,23 @@ namespace InfChests
 					return false;
 			}
 		}
+
+		public static bool isRefill(int chestid)
+		{
+			string query = $"SELECT Refill FROM InfChests WHERE ID = {chestid}";
+			using (var reader = db.QueryReader(query))
+			{
+				if (reader.Read())
+				{
+					int refill = reader.Get<int>("Refill");
+					if (refill > 0)
+						return true;
+					else
+						return false;
+				}
+				else
+					return false;
+			}
+		}
 	}
 }

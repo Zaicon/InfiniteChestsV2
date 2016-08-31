@@ -138,4 +138,16 @@ namespace InfChests
 			location = new Point();
 		}
 	}
+
+	public class RefillInfo
+	{
+		public Item[] items;
+		public DateTime lastView;
+
+		public RefillInfo(Item[] items, DateTime lastView)
+		{
+			this.items = items;
+			this.lastView = lastView;
+		}
+	}
 }

@@ -52,7 +52,7 @@ namespace InfChests
 		internal static Dictionary<int, Data> playerData = new Dictionary<int, Data>();
 		internal static bool lockChests = false;
 		internal static bool notInfChests = false;
-		private static List<Tuple<int, Item[], DateTime>> refillInfo = new List<Tuple<int, Item[], DateTime>>();
+		private static Dictionary<int, RefillInfo> refillInfo = new Dictionary<int, RefillInfo>();
 
 		#region Hooks
 		private void onInitialize(EventArgs args)
@@ -95,6 +95,9 @@ namespace InfChests
 						//if player opens a new chest (nearby) without closing first chest
 						if (playerData[index].dbid != -1)
 						{
+							if (playerData[index].lockChests)
+								return;
+
 							playerData[index].lockChests = true;
 
 							await Task.Factory.StartNew(() =>
@@ -147,7 +150,8 @@ namespace InfChests
 						short itemid = reader.ReadInt16();
 
 #if DEBUG
-						File.AppendAllText("debug.txt", $"22 ChestItem | WhoAmI: {args.Msg.whoAmI} | chestid = {chestid} | slot = {itemslot} | stack = {stack} | prefix = {prefix} | itemid = {itemid}\n");
+						if (itemslot == 0 || itemslot == 39)
+							File.AppendAllText("debug.txt", $"22 ChestItem | WhoAmI: {args.Msg.whoAmI} | chestid = {chestid} | slot = {itemslot} | stack = {stack} | prefix = {prefix} | itemid = {itemid}\n");
 #endif
 
 						//If someone sends this packet manually
@@ -161,31 +165,8 @@ namespace InfChests
 							playerData[index].newChestItems[itemslot].stack = stack;
 							playerData[index].newChestItems[itemslot].prefix = prefix;
 
-							//If chest is refillable, only edit refill copy
-							if (refillInfo.Exists(p => p.Item1 == playerData[index].dbid))
-							{
-								int rindex = refillInfo.FindIndex(p => p.Item1 == playerData[index].dbid);
-								var t = new Tuple<int, Item[], DateTime>(refillInfo[rindex].Item1, playerData[index].newChestItems, refillInfo[rindex].Item3);
-								refillInfo[rindex] = t;
-								
-								return;
-							}
-
-							// We're now handling all db transactions upon chest closing
-
-							//playerData[args.Msg.whoAmI].transactionsLeft++;
-							//if (!DB.setItem(playerData[args.Msg.whoAmI].dbid, chest.item[itemslot], itemslot))
-							//	TShock.Log.Error("Error updating items in DB.");
-							//playerData[args.Msg.whoAmI].transactionsLeft--;
-
-							//if (playerData[args.Msg.whoAmI].hasClosed && playerData[args.Msg.whoAmI].transactionsLeft == 0)
-							//{
-							//	Main.chest[playerData[args.Msg.whoAmI].mainid] = null;
-							//	playerData[args.Msg.whoAmI].mainid = -1;
-							//	playerData[args.Msg.whoAmI].dbid = -1;
-							//	playerData[args.Msg.whoAmI].hasClosed = false;
-							//	NetMessage.SendData((int)PacketTypes.SyncPlayerChestIndex, -1, args.Msg.whoAmI, "", args.Msg.whoAmI, -1);
-							//}
+							if (refillInfo.ContainsKey(playerData[index].dbid))
+								refillInfo[playerData[index].dbid].items[itemslot] = playerData[index].newChestItems[itemslot].Clone();
 							
 						});
 
@@ -212,7 +193,10 @@ namespace InfChests
 							playerData[index].lockChests = true;
 
 							await Task.Factory.StartNew(() => {
-								
+
+								if (DB.isRefill(playerData[index].dbid))
+									return;
+
 								int oldChestID = playerData[index].dbid;
 								Item[] oldChestItems = (Item[])playerData[index].oldChestItems.Clone();
 								Item[] newChestItems = (Item[])playerData[index].newChestItems.Clone();
@@ -250,6 +234,7 @@ namespace InfChests
 							args.Handled = true;
 							return;
 						}
+						
 						byte action = reader.ReadByte(); // 0 placechest, 1 killchest, 2 placedresser, 3 killdresser
 						tilex = reader.ReadInt16();
 						tiley = reader.ReadInt16();
@@ -259,6 +244,12 @@ namespace InfChests
 #if DEBUG
 						File.AppendAllText("debug.txt", $"34 TileKill | WhoAmI: {args.Msg.whoAmI} | action = {action} | tilex = {tilex} | tiley = {tiley} | style = {style}\n");
 #endif
+						if (playerData[index].lockChests)
+						{
+							args.Handled = true;
+							TShock.Players[index].SendTileSquare(tilex, tiley, 3);
+							return;
+						}
 
 						if (action == 0 || action == 2)
 						{
@@ -548,7 +539,8 @@ namespace InfChests
 							else
 								player.SendSuccessMessage("Set refill time to " + playerData[player.Index].refillTime + " seconds.");
 
-							refillInfo.RemoveAll(p => p.Item1 == chest.id);
+							if (refillInfo.ContainsKey(chest.id))
+								refillInfo.Remove(chest.id);
 						}
 					}
 					break;
@@ -614,28 +606,28 @@ namespace InfChests
 
 						if (chest.refillTime > 0)
 						{
-							
-							if (refillInfo.Exists(p => p.Item1 == chest.id))
+
+							if (refillInfo.ContainsKey(chest.id))
 							{
-								int cindex = refillInfo.FindIndex(p => p.Item1 == chest.id);
-								if ((DateTime.Now - refillInfo[cindex].Item3).Seconds > chest.refillTime)
+								//int cindex = refillInfo.FindIndex(p => p.Item1 == chest.id);
+								if ((DateTime.Now - refillInfo[chest.id].lastView).Seconds > chest.refillTime)
 								{
-									refillInfo.RemoveAt(cindex);
-									writeItems = chest.items;
-									refillInfo.Add(new Tuple<int, Item[], DateTime>(chest.id, chest.items, DateTime.Now));
+									refillInfo[chest.id].items = (Item[])chest.items.Clone();
+									writeItems = refillInfo[chest.id].items;
+									refillInfo[chest.id].lastView = DateTime.Now;
 									TShock.Players[index].SendWarningMessage("This chest will refill in " + chest.refillTime + " seconds!");
 								}
 								else
 								{
-									writeItems = refillInfo[cindex].Item2;
-									int time = chest.refillTime - (DateTime.Now - refillInfo[cindex].Item3).Seconds;
+									writeItems = refillInfo[chest.id].items;
+									int time = chest.refillTime - (DateTime.Now - refillInfo[chest.id].lastView).Seconds;
 									TShock.Players[index].SendWarningMessage("This chest will refill in " + time + " seconds!");
 								}
 							}
 							else
 							{
 								writeItems = chest.items;
-								refillInfo.Add(new Tuple<int, Item[], DateTime>(chest.id, chest.items, DateTime.Now));
+								refillInfo.Add(chest.id, new RefillInfo((Item[])chest.items.Clone(), DateTime.Now));
 								TShock.Players[index].SendWarningMessage("This chest refills every " + chest.refillTime + " seconds!");
 							}
 						}

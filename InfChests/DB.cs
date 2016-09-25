@@ -422,7 +422,8 @@ namespace InfChests
 					chests.Add(new InfChest() {
 						id = reader.Get<int>("ID"),
 						refillTime = reader.Get<int>("Refill"),
-						userid = reader.Get<int>("UserID")
+						userid = reader.Get<int>("UserID"),
+						items = new Item[40]
 					});
 					//Not filling other stuff since it's not used in NearbyChests
 				}

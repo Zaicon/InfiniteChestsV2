@@ -125,7 +125,7 @@ namespace InfChests
 			//update database
 			for (int i = 0; i < nearbyChests.Count; i++)
 			{
-				for (int j = 0; j < 50; j++)
+				for (int j = 0; j < 40; j++)
 				{
 					if (nearbyChests[i].items[j] == original[i][j])
 						continue;

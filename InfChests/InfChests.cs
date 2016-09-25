@@ -11,7 +11,7 @@ using System.Linq;
 
 namespace InfChests
 {
-	[ApiVersion(1, 23)]
+	[ApiVersion(1, 24)]
 	public class InfChests : TerrariaPlugin
 	{
 		#region Plugin Info
@@ -356,8 +356,16 @@ namespace InfChests
 
 		private bool getChestContents(int index, short tilex, short tiley)
 		{
-			InfChest chest = DB.getChest(tilex, (short)(tiley));
+			string filepath = "chestdebug.txt";
+
+			InfChest chest = DB.getChest(tilex, tiley);
 			TSPlayer player = TShock.Players[index];
+
+			if (player == null)
+			{
+				TShock.Log.Warn("Null player in getChestContents." + Environment.NewLine);
+				return true;
+			}
 
 			if (chest == null)
 			{
@@ -606,7 +614,6 @@ namespace InfChests
 
 						if (chest.refillTime > 0)
 						{
-
 							if (refillInfo.ContainsKey(chest.id))
 							{
 								//int cindex = refillInfo.FindIndex(p => p.Item1 == chest.id);
@@ -615,47 +622,68 @@ namespace InfChests
 									refillInfo[chest.id].items = (Item[])chest.items.Clone();
 									writeItems = refillInfo[chest.id].items;
 									refillInfo[chest.id].lastView = DateTime.Now;
-									TShock.Players[index].SendWarningMessage("This chest will refill in " + chest.refillTime + " seconds!");
+									//TShock.Players[index].SendWarningMessage("This chest will refill in " + chest.refillTime + " seconds!");
 								}
 								else
 								{
 									writeItems = refillInfo[chest.id].items;
 									int time = chest.refillTime - (DateTime.Now - refillInfo[chest.id].lastView).Seconds;
-									TShock.Players[index].SendWarningMessage("This chest will refill in " + time + " seconds!");
+									//TShock.Players[index].SendWarningMessage("This chest will refill in " + time + " seconds!");
 								}
 							}
 							else
 							{
 								writeItems = chest.items;
 								refillInfo.Add(chest.id, new RefillInfo((Item[])chest.items.Clone(), DateTime.Now));
-								TShock.Players[index].SendWarningMessage("This chest refills every " + chest.refillTime + " seconds!");
+								//TShock.Players[index].SendWarningMessage("This chest refills every " + chest.refillTime + " seconds!");
 							}
 						}
 						else
 							writeItems = chest.items;
 
-						Main.chest[0] = new Chest()
+						int chestid = -1;
+
+						for (int i = 0; i < Main.chest.Length; i++)
+						{
+							if (Main.chest[i] == null)
+							{
+								chestid = i;
+								break;
+							}
+						}
+
+						if (chestid == -1)
+							return true;
+
+						Main.chest[chestid] = new Chest()
 						{
 							item = writeItems,
 							x = chest.x,
 							y = chest.y
 						};
 
-						for (int i = 0; i < writeItems.Length; i++)
-						{
-							player.SendData(PacketTypes.ChestItem, "", 0, i, writeItems[i].stack, writeItems[i].prefix, writeItems[i].type);
-						}
-						player.SendData(PacketTypes.ChestOpen, "", 0, chest.x, chest.y);
 						try
 						{
-							NetMessage.SendData((int)PacketTypes.SyncPlayerChestIndex, -1, index, "", index, 0);
+							for (int i = 0; i < writeItems.Length; i++)
+							{
+								if (writeItems[i] == null)
+								{
+									TShock.Log.Error($"writeItems[{i}] is null.");
+									player.SendData(PacketTypes.ChestItem, "", chestid, i, 0, 0, 0);
+									continue;
+								}
+								player.SendData(PacketTypes.ChestItem, "", chestid, i, writeItems[i].stack, writeItems[i].prefix, writeItems[i].type);
+							}
+							player.SendData(PacketTypes.ChestOpen, "", chestid, chest.x, chest.y);
+
+							NetMessage.SendData((int)PacketTypes.SyncPlayerChestIndex, -1, index, "", index, chestid);
 						}
 						catch (Exception ex)
 						{
-							TShock.Log.Error("NetMessage.SendData(syncplayerchestindex) Error: " + ex.Message);
+							TShock.Log.Error("NetMessage.SendData(all) Error: " + ex.Message);
 						}
 
-						Main.chest[0] = null;
+						Main.chest[chestid] = null;
 					}
 					break;
 			}

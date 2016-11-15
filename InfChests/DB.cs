@@ -375,17 +375,21 @@ namespace InfChests
 
 		public static int pruneChests(int index)
 		{
-			string query = $"SELECT * FROM ChestItems WHERE Type = 0 AND WorldID = {Main.worldID}";
+			//Select all chests with items in them and add to list.
+			string query = $"SELECT * FROM ChestItems WHERE Type != 0 AND WorldID = {Main.worldID}";
 			List<int> chestIDs = new List<int>();
 			using (var reader = db.QueryReader(query))
 			{
 				while (reader.Read())
 				{
-					chestIDs.Add(reader.Get<int>("ChestID"));
+					int id = reader.Get<int>("ChestID");
+					if (!chestIDs.Contains(id))
+						chestIDs.Add(id);
 				}
 			}
 
-			query = $"SELECT * FROM InfChests WHERE ID IN ({string.Join(",", chestIDs)})";
+			//Select all chests NOT in list (i.e. empty)
+			query = $"SELECT * FROM InfChests WHERE ID NOT IN ({string.Join(",", chestIDs)}) AND WorldID = {Main.worldID}";
 			using (var reader = db.QueryReader(query))
 			{
 				while (reader.Read())
@@ -398,9 +402,9 @@ namespace InfChests
 				}
 			}
 
-			query = $"DELETE FROM InfChests WHERE ID IN ({string.Join(",", chestIDs)})";
+			query = $"DELETE FROM InfChests WHERE ID NOT IN ({string.Join(",", chestIDs)}) AND WorldID = {Main.worldID}";
 			int count = db.Query(query);
-			query = $"DELETE FROM ChestItems WHERE Type = 0 AND WorldID = {Main.worldID}";
+			query = $"DELETE FROM ChestItems WHERE ChestID NOT IN ({string.Join(",", chestIDs)}) AND WorldID = {Main.worldID}";
 			db.Query(query);
 			return count;
 		}

@@ -627,7 +627,7 @@ namespace InfChests
 								else
 								{
 									writeItems = refillInfo[chest.id].items;
-									int time = chest.refillTime - (DateTime.Now - refillInfo[chest.id].lastView).Seconds;
+									int time = (int)(chest.refillTime - (DateTime.Now - refillInfo[chest.id].lastView).TotalSeconds);
 									//TShock.Players[index].SendWarningMessage("This chest will refill in " + time + " seconds!");
 								}
 							}
@@ -1021,6 +1021,7 @@ namespace InfChests
 		private int convertChests()
 		{
 			int converted = 0;
+			//List<InfChest> totalChests = new List<InfChest>();
 			for (int i = 0; i < Main.chest.Length; i++)
 			{
 				Chest chest = Main.chest[i];
@@ -1035,10 +1036,12 @@ namespace InfChests
 					};
 
 					DB.addChest(ichest);
+					//totalChests.Add(ichest);
 					converted++;
 				}
 				Main.chest[i] = null;
 			}
+			//DB.addAllChests(totalChests);
 			if (converted > 0)
 			{
 				TSPlayer.Server.SendInfoMessage("[InfChests] Converted " + converted + " chest(s).");

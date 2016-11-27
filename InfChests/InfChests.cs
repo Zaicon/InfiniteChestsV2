@@ -11,7 +11,7 @@ using System.Linq;
 
 namespace InfChests
 {
-	[ApiVersion(1, 25)]
+	[ApiVersion(1, 26)]
 	public class InfChests : TerrariaPlugin
 	{
 		#region Plugin Info

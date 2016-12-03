@@ -216,7 +216,7 @@ namespace InfChests
 							playerData[index].oldChestItems = new Item[40];
 							playerData[index].newChestItems = new Item[40];
 						}
-						else if (chestid == -1 || chestid == -3 || chestid == -2) // -2 is open piggy bank, -3 is open safe, -1 is close piggy bank/safe
+						else if (chestid == -1 || chestid == -3 || chestid == -2 || chestid == -4) // -2 is open piggy bank, -3 is open safe, -1 is close piggy bank/safe, -4 is open forge
 						{
 							//do nothing
 						}
@@ -299,7 +299,7 @@ namespace InfChests
 								{
 									//Do nothing - ingore tilekill attempt when items are in chest
 								}
-								else if (chest2.refillTime > 0)
+								else if (chest2.refillTime > -1)
 								{
 									player.SendErrorMessage("You cannot destroy refilling chests.");
 								}
@@ -392,7 +392,7 @@ namespace InfChests
 					player.SendInfoMessage($"X: {chest.x} | Y: {chest.y}");
 					string owner = chest.userid == -1 ? "(None)" : TShock.Users.GetUserByID(chest.userid).Name;
 					string ispublic = chest.isPublic ? " (Public)" : "";
-					string isrefill = chest.refillTime > 0 ? $" (Refill: {chest.refillTime})" : "";
+					string isrefill = chest.refillTime > -1 ? $" (Refill: {chest.refillTime})" : "";
 					player.SendInfoMessage($"Chest Owner: {owner}{ispublic}{isrefill}");
 					if (chest.groups.Count > 0)
 					{
@@ -542,7 +542,7 @@ namespace InfChests
 						}
 						else
 						{
-							if (playerData[player.Index].refillTime == 0)
+							if (playerData[player.Index].refillTime == -1)
 								player.SendSuccessMessage("Removed this chest's auto-refill.");
 							else
 								player.SendSuccessMessage("Set refill time to " + playerData[player.Index].refillTime + " seconds.");
@@ -612,12 +612,16 @@ namespace InfChests
 
 						Item[] writeItems;
 
-						if (chest.refillTime > 0)
+						if (chest.refillTime > -1)
 						{
 							if (refillInfo.ContainsKey(chest.id))
 							{
+								if (chest.refillTime == 0)
+								{
+									writeItems = (Item[])chest.items.Clone();
+								}
 								//int cindex = refillInfo.FindIndex(p => p.Item1 == chest.id);
-								if ((DateTime.Now - refillInfo[chest.id].lastView).TotalSeconds > chest.refillTime)
+								else if ((DateTime.Now - refillInfo[chest.id].lastView).TotalSeconds > chest.refillTime)
 								{
 									refillInfo[chest.id].items = (Item[])chest.items.Clone();
 									writeItems = refillInfo[chest.id].items;
@@ -914,14 +918,14 @@ namespace InfChests
 						break;
 					}
 					int refillTime;
-					if (!int.TryParse(args.Parameters[1], out refillTime) || refillTime < 0 || refillTime > 99999)
+					if (!int.TryParse(args.Parameters[1], out refillTime) || refillTime < -1 || refillTime > 99999)
 					{
 						args.Player.SendErrorMessage("Invalid refill time.");
 						break;
 					}
 					playerData[args.Player.Index].action = chestAction.setRefill;
 					playerData[args.Player.Index].refillTime = refillTime;
-					if (refillTime != 0)
+					if (refillTime != -1)
 						args.Player.SendInfoMessage("Open a chest to set its refill time to " + refillTime + " seconds.");
 					else
 						args.Player.SendInfoMessage("Open a chest to remove auto-refill.");

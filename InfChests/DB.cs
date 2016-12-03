@@ -388,15 +388,22 @@ namespace InfChests
 				}
 			}
 
-			//Select all chests NOT in list (i.e. empty)
-			query = $"SELECT * FROM InfChests WHERE ID NOT IN ({string.Join(",", chestIDs)}) AND WorldID = {Main.worldID}";
+			//Select all chests NOT in list (i.e. empty) and not refilling
+			query = $"SELECT * FROM InfChests WHERE ID NOT IN ({string.Join(",", chestIDs)}) AND Refill = -1 AND WorldID = {Main.worldID}";
 			using (var reader = db.QueryReader(query))
 			{
 				while (reader.Read())
 				{
 					int tilex = reader.Get<int>("X");
 					int tiley = reader.Get<int>("Y");
-					WorldGen.KillTile(tilex, tiley, noItem: true);
+					try
+					{
+						WorldGen.KillTile(tilex, tiley, noItem: true);
+					}
+					catch (Exception ex)
+					{
+						TShock.Log.ConsoleError("Failed to kill chest at (" + tilex + "," + tiley + ").");
+					}
 					foreach (TSPlayer plr in TShock.Players.Where(p => p != null && p.Active))
 						plr.SendTileSquare(tilex, tiley, 3);
 				}
@@ -500,7 +507,7 @@ namespace InfChests
 				if (reader.Read())
 				{
 					int refill = reader.Get<int>("Refill");
-					if (refill > 0)
+					if (refill > -1)
 						return true;
 					else
 						return false;

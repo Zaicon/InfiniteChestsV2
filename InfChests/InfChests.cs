@@ -66,6 +66,7 @@ namespace InfChests
 			Commands.ChatCommands.Add(new Command("ic.use", ChestCMD, "chest"));
 			Commands.ChatCommands.Add(new Command("ic.convert", ConvChests, "convchests"));
 			Commands.ChatCommands.Add(new Command("ic.prune", PruneChests, "prunechests"));
+			Commands.ChatCommands.Add(new Command("ic.fix", PruneChests, "fixchests"));
 		}
 
 		private async void onWorldLoaded(EventArgs args)
@@ -102,7 +103,7 @@ namespace InfChests
 
 							await Task.Factory.StartNew(() =>
 							{
-								
+
 								int oldChestID = playerData[index].dbid;
 								Item[] oldChestItems = (Item[])playerData[index].oldChestItems.Clone();
 								Item[] newChestItems = (Item[])playerData[index].newChestItems.Clone();
@@ -167,7 +168,7 @@ namespace InfChests
 
 							if (refillInfo.ContainsKey(playerData[index].dbid))
 								refillInfo[playerData[index].dbid].items[itemslot] = playerData[index].newChestItems[itemslot].Clone();
-							
+
 						});
 
 						break;
@@ -208,7 +209,7 @@ namespace InfChests
 										DB.setItem(oldChestID, newChestItems[i], i);
 									}
 								}
-								
+
 							});
 
 							playerData[index].lockChests = false;
@@ -220,7 +221,7 @@ namespace InfChests
 						{
 							//do nothing
 						}
-						else 
+						else
 						{
 							args.Handled = true;
 							TShock.Log.ConsoleError("Unhandled ChestOpen packet.");
@@ -234,7 +235,7 @@ namespace InfChests
 							args.Handled = true;
 							return;
 						}
-						
+
 						byte action = reader.ReadByte(); // 0 placechest, 1 killchest, 2 placedresser, 3 killdresser
 						tilex = reader.ReadInt16();
 						tiley = reader.ReadInt16();
@@ -267,7 +268,8 @@ namespace InfChests
 									items = Main.chest[chestnum].item,
 									userid = TShock.Players[index].HasPermission("ic.protect") ? TShock.Players[index].User.ID : -1,
 									x = Main.chest[chestnum].x,
-									y = Main.chest[chestnum].y
+									y = Main.chest[chestnum].y,
+									refillTime = -1
 								});
 								Main.chest[chestnum] = null;
 								playerData[index].lockChests = false;
@@ -380,7 +382,7 @@ namespace InfChests
 			{
 				player.SendErrorMessage("This chest is in use.");
 				playerData[index].action = chestAction.none;
-				
+
 				player.SendData(PacketTypes.ChestOpen, "", -1);
 
 				return true;
@@ -1020,6 +1022,21 @@ namespace InfChests
 			int results = await Task<int>.Factory.StartNew(() => DB.pruneChests(args.Player.Index));
 			args.Player.SendSuccessMessage($"Destroyed {results} empty chests.");
 		}
+
+		private async void FixChests(CommandArgs args)
+		{
+			if (args.Parameters.Count == 1 && args.Parameters[0].ToLower() == "confirm")
+			{
+				DB.ConvertRefills();
+				args.Player.SendSuccessMessage("Converted all chests with a refill time of '0' to '-1'!");
+
+				Commands.ChatCommands.RemoveAll(e => e.Name == "fixchests");
+				return;
+			}
+
+			args.Player.SendWarningMessage("WARNING! This will convert ALL of the chests with a refill time of '0' (immediate) to '-1' (no refill). " +
+				"If you are sure you want to do this, type '/fixchests confirm'.");
+		}
 		#endregion
 
 		private int convertChests()
@@ -1036,7 +1053,8 @@ namespace InfChests
 						items = chest.item,
 						x = chest.x,
 						y = chest.y,
-						userid = -1
+						userid = -1,
+						refillTime = -1
 					};
 
 					DB.addChest(ichest);

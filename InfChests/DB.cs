@@ -516,5 +516,11 @@ namespace InfChests
 					return false;
 			}
 		}
+
+		public static void ConvertRefills()
+		{
+			string query = "UPDATE `InfChests` SET `Refill` = -1 WHERE `Refill` = 0;";
+			int result = db.Query(query);
+		}
 	}
 }

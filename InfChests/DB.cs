@@ -1,4 +1,5 @@
-﻿using Mono.Data.Sqlite;
+﻿using Microsoft.Xna.Framework;
+using Mono.Data.Sqlite;
 using MySql.Data.MySqlClient;
 using System;
 using System.Collections.Generic;
@@ -400,7 +401,7 @@ namespace InfChests
 					{
 						WorldGen.KillTile(tilex, tiley, noItem: true);
 					}
-					catch (Exception ex)
+					catch (Exception)
 					{
 						TShock.Log.ConsoleError("Failed to kill chest at (" + tilex + "," + tiley + ").");
 					}

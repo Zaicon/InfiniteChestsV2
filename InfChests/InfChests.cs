@@ -8,6 +8,7 @@ using Terraria.IO;
 using TerrariaApi.Server;
 using TShockAPI;
 using System.Linq;
+using Microsoft.Xna.Framework;
 
 namespace InfChests
 {
@@ -358,8 +359,6 @@ namespace InfChests
 
 		private bool getChestContents(int index, short tilex, short tiley)
 		{
-			string filepath = "chestdebug.txt";
-
 			InfChest chest = DB.getChest(tilex, tiley);
 			TSPlayer player = TShock.Players[index];
 
@@ -1037,7 +1036,7 @@ namespace InfChests
 		{
 			if (args.Parameters.Count == 1 && args.Parameters[0].ToLower() == "confirm")
 			{
-				DB.ConvertRefills();
+				await Task.Factory.StartNew(() => DB.ConvertRefills());
 				args.Player.SendSuccessMessage("Converted all chests with a refill time of '0' to '-1'!");
 
 				Commands.ChatCommands.RemoveAll(e => e.Name == "fixchests");

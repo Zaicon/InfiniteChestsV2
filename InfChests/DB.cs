@@ -76,7 +76,7 @@ namespace InfChests
 					return false;
 			}
 
-			query = $"INSERT INTO InfChests (UserID, X, Y, Name, Public, Refill, Users, Groups, WorldID) VALUES ({_chest.userid}, {_chest.x}, {_chest.y}, '', {0}, {0}, '', '', {Main.worldID})";
+			query = $"INSERT INTO InfChests (UserID, X, Y, Name, Public, Refill, Users, Groups, WorldID) VALUES ({_chest.userid}, {_chest.x}, {_chest.y}, '', {0}, {-1}, '', '', {Main.worldID})";
 			int result = db.Query(query);
 			query = $"SELECT MAX(ID) AS lastchestid FROM InfChests";
 

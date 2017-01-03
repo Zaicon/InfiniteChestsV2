@@ -12,7 +12,7 @@ using Microsoft.Xna.Framework;
 
 namespace InfChests
 {
-	[ApiVersion(1, 26)]
+	[ApiVersion(2, 0)]
 	public class InfChests : TerrariaPlugin
 	{
 		#region Plugin Info
@@ -67,7 +67,7 @@ namespace InfChests
 			Commands.ChatCommands.Add(new Command("ic.use", ChestCMD, "chest"));
 			Commands.ChatCommands.Add(new Command("ic.convert", ConvChests, "convchests"));
 			Commands.ChatCommands.Add(new Command("ic.prune", PruneChests, "prunechests"));
-			Commands.ChatCommands.Add(new Command("ic.fix", PruneChests, "fixchests"));
+			Commands.ChatCommands.Add(new Command("ic.fix", FixChests, "fixchests"));
 		}
 
 		private async void onWorldLoaded(EventArgs args)
@@ -633,6 +633,7 @@ namespace InfChests
 								}
 								else
 								{
+									return true;
 									writeItems = refillInfo[chest.id].items;
 									int time = (int)(chest.refillTime - (DateTime.Now - refillInfo[chest.id].lastView).TotalSeconds);
 									//TShock.Players[index].SendWarningMessage("This chest will refill in " + time + " seconds!");

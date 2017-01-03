@@ -32,8 +32,9 @@ This is a completely rewritten version of MarioE's original InfiniteChests plugi
 /chest save <chest name> - Marks a chest with a name so that the chest can be loaded on future chests.
 /chest load <chest name> - Overwrites a chest with the complete properties of the previously-marked chest.
 /chest cancel - Cancels any of the above actions.
-/convchests [-r] - Converts any "real" chests to database chests (or reverse with `-r`)
+/convchests [-r] - Converts any "real" chests to database chests (or reverse with `-r`).
 /prunechests - Permanently removes empty chests from the world and database.
+/fixchests - Converts all chests with a refill time of "0" (immediate) to a refill time of "-1" (none).
 ```
 
 ###Permisisons
@@ -49,4 +50,5 @@ ic.edit - Allows player to edit any chest regardless of chest protection.
 ic.save - Enables use of /chest save, load
 ic.convert - Enables use of /convchests
 ic.prune - Enables use of /prunechests
+ic.fix - Enables use of /fixchests
 ```

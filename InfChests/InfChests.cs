@@ -379,7 +379,7 @@ namespace InfChests
 				return true;
 			}
 
-			if (playerData.Values.Any(p => p.dbid == chest.id))
+			if (chest.refillTime != 0 && playerData.Values.Any(p => p.dbid == chest.id))
 			{
 				player.SendErrorMessage("This chest is in use.");
 				playerData[index].action = chestAction.none;

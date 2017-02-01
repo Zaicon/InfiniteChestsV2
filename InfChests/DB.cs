@@ -97,16 +97,26 @@ namespace InfChests
 					}
 				}
 			}
-			for (int i = 0; i < _chest.items.Length; i++)
-			{
-				query = $"INSERT INTO ChestItems (Slot, Type, Stack, Prefix, WorldID, ChestID) VALUES ({i}, {_chest.items[i].type}, {_chest.items[i].stack}, {_chest.items[i].prefix}, {Main.worldID}, {lastid})";
-				result += db.Query(query);
-			}
+            //Reduce 40 transactions to 1. Massive speed increase on initial chest conversion.
+            query = "INSERT INTO ChestItems (Slot, Type, Stack, Prefix, WorldID, ChestID) VALUES";
+            for (int i = 0; i < _chest.items.Length; i++)
+            {
+	            query += $" ({i}, {_chest.items[i].type}, {_chest.items[i].stack}, {_chest.items[i].prefix}, {Main.worldID}, {lastid}),";
+            }
+            query = query.TrimEnd(',');
+            result = db.Query(query);
+            return (result == 40);
+			//for (int i = 0; i < _chest.items.Length; i++)
+			//{
+			//	query = $"INSERT INTO ChestItems (Slot, Type, Stack, Prefix, WorldID, ChestID) VALUES ({i}, {_chest.items[i].type}, {_chest.items[i].stack}, {_chest.items[i].prefix}, {Main.worldID}, {lastid})";
+			//	result += db.Query(query);
+			//}
+            //
+			//if (result == 41)
+			//	return true;
+			//else
+			//	return false;
 
-			if (result == 41)
-				return true;
-			else
-				return false;
 		}
 
 		public static bool removeChest(int id)

@@ -9,10 +9,11 @@ using TerrariaApi.Server;
 using TShockAPI;
 using System.Linq;
 using Microsoft.Xna.Framework;
+using Terraria.Localization;
 
 namespace InfChests
 {
-	[ApiVersion(2, 0)]
+	[ApiVersion(2, 1)]
 	public class InfChests : TerrariaPlugin
 	{
 		#region Plugin Info
@@ -123,7 +124,7 @@ namespace InfChests
 							playerData[index].dbid = -1;
 							playerData[index].oldChestItems = new Item[40];
 							playerData[index].newChestItems = new Item[40];
-							NetMessage.SendData((int)PacketTypes.SyncPlayerChestIndex, -1, index, "", index, -1);
+							NetMessage.SendData((int)PacketTypes.SyncPlayerChestIndex, -1, index, NetworkText.Empty, index, -1);
 						}
 
 						if (lockChests)
@@ -191,7 +192,7 @@ namespace InfChests
 
 						if (chestid == -1 && playerData[index].dbid != -1)
 						{
-							NetMessage.SendData((int)PacketTypes.SyncPlayerChestIndex, -1, index, "", index, -1);
+							NetMessage.SendData((int)PacketTypes.SyncPlayerChestIndex, -1, index, NetworkText.Empty, index, -1);
 							playerData[index].lockChests = true;
 
 							await Task.Factory.StartNew(() => {
@@ -684,7 +685,7 @@ namespace InfChests
 							}
 							player.SendData(PacketTypes.ChestOpen, "", chestid, chest.x, chest.y);
 
-							NetMessage.SendData((int)PacketTypes.SyncPlayerChestIndex, -1, index, "", index, chestid);
+							NetMessage.SendData((int)PacketTypes.SyncPlayerChestIndex, -1, index, NetworkText.Empty, index, chestid);
 						}
 						catch (Exception ex)
 						{
@@ -788,19 +789,19 @@ namespace InfChests
 						break;
 					}
 					string name = string.Join(" ", args.Parameters.GetRange(1, args.Parameters.Count - 1));
-					if (Main.itemName.ToList().Exists(p => p.ToLower() == name.ToLower()))
+					if (Main.item.ToList().Exists(p => p.Name.ToLower() == name.ToLower()))
 					{
-						int itemid = Main.itemName.ToList().FindIndex(p => p.ToLower() == name.ToLower());
+						int itemid = Main.item.ToList().FindIndex(p => p.Name.ToLower() == name.ToLower());
 						int count = DB.searchChests(itemid);
-						args.Player.SendSuccessMessage($"There are {count} chest(s) with {Main.itemName[itemid]}(s).");
+						args.Player.SendSuccessMessage($"There are {count} chest(s) with {Lang.GetItemNameValue(itemid)}(s).");
 					}
-					else if (Main.itemName.ToList().Count(p => p.ToLower().Contains(name.ToLower())) == 1)
+					else if (Main.item.ToList().Count(p => p.Name.ToLower().Contains(name.ToLower())) == 1)
 					{
-						int itemid = Main.itemName.ToList().FindIndex(p => p.ToLower().Contains(name.ToLower()));
+						int itemid = Main.item.ToList().FindIndex(p => p.Name.ToLower().Contains(name.ToLower()));
 						int count = DB.searchChests(itemid);
-						args.Player.SendSuccessMessage($"There are {count} chest(s) with {Main.itemName[itemid]}(s).");
+						args.Player.SendSuccessMessage($"There are {count} chest(s) with {Lang.GetItemNameValue(itemid)}(s).");
 					}
-					else if (Main.itemName.ToList().Exists(p => p.ToLower().Contains(name.ToLower())))
+					else if (Main.item.ToList().Exists(p => p.Name.ToLower().Contains(name.ToLower())))
 					{
 						args.Player.SendErrorMessage($"Multiple matches found for item '{name}'");
 					}

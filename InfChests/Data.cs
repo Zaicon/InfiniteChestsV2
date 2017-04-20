@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Timers;
 using Terraria;
+using Terraria.Localization;
 using TShockAPI;
 
 namespace InfChests
@@ -121,7 +122,7 @@ namespace InfChests
 			//update players
 			foreach(KeyValuePair<int, Item> kvp in slotInfo)
 			{
-				NetMessage.SendData((int)PacketTypes.PlayerSlot, -1, -1, "", index, kvp.Key, kvp.Value.prefix, kvp.Value.stack, kvp.Value.type);
+				NetMessage.SendData((int)PacketTypes.PlayerSlot, -1, -1, NetworkText.Empty, index, kvp.Key, kvp.Value.prefix, kvp.Value.stack, kvp.Value.type);
 			}
 			//update database
 			for (int i = 0; i < nearbyChests.Count; i++)
